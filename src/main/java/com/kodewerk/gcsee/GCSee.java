@@ -89,7 +89,7 @@ public class GCSee extends JFrame {
         HeapOccupancyAggregation aggregation = jvm.getAggregation(HeapOccupancyAggregation.class).get();
         XYSeriesCollection dataset = aggregation.getHeapOccupancyAfterCollection();
         JFreeChart chart = ChartFactory.createScatterPlot(
-                "Heap Occupancy After Collection", "Time (Seconds)", "Occupancy (KB)", dataset);
+                "Heap Occupancy After Collection", "Time (Seconds)", "Occupancy (" + aggregation.getScale() + ")", dataset);
         pane.addTab("Heap", new ChartPanel(chart));
     }
 
@@ -104,8 +104,9 @@ public class GCSee extends JFrame {
     private void buildAllocationRate(JavaVirtualMachine jvm) {
         AllocationRateAggregation aggregation = jvm.getAggregation(AllocationRateAggregation.class).get();
         XYSeriesCollection dataset = aggregation.getAllocationRates();
+        Units units = aggregation.getUnits();
         JFreeChart chart = ChartFactory.createScatterPlot(
-                "Allocation Rates", "Time (Seconds)", "Allocation Rates (KB/s)", dataset);
+                "Allocation Rates", "Time (Seconds)", "Allocation Rates " + units.toString() + "/s", dataset);
         pane.addTab("Allocation Rates", new ChartPanel(chart));
     }
 }

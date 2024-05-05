@@ -12,6 +12,7 @@ public class AllocationRateAggregator extends Aggregator<AllocationRateAggregati
         super(aggregation);
         register(G1GCPauseEvent.class, this::recordAllocationRate);
         register(GenerationalGCPauseEvent.class, this::recordAllocationRate);
+        aggregation().setUnits(Units.KB);
     }
 
     private void recordAllocationRate(G1GCPauseEvent event) {

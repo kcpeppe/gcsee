@@ -17,12 +17,14 @@ public class HeapOccupancyAggregator extends Aggregator<HeapOccupancyAggregation
     private void recordHeapOccupancy(G1GCPauseEvent event) {
         aggregation().recordHeapOccupancyAfterCollection(event.getGarbageCollectionType(),
                 event.getDateTimeStamp().getTimeStamp(),
+                event.getHeap().getSizeAfterCollection(),
                 event.getHeap().getOccupancyAfterCollection());
     }
 
     private void recordHeapOccupancy(GenerationalGCPauseEvent event) {
         aggregation().recordHeapOccupancyAfterCollection(event.getGarbageCollectionType(),
                 event.getDateTimeStamp().getTimeStamp(),
+                event.getHeap().getSizeAfterCollection(),
                 event.getHeap().getOccupancyAfterCollection());
     }
 }
