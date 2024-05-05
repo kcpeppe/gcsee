@@ -37,14 +37,6 @@ public class GCSeeMenuBar extends JMenuBar {
 
     }
 
-//    private static JMenuItem menuItem(String title, char hotKeyBinding, int accelerator) {
-//        JMenuItem item = new JMenuItem(title);
-//        item.setMnemonic(hotKeyBinding);
-//        if (accelerator != -1)
-//            item.setAccelerator(KeyStroke.getKeyStroke(accelerator,MASK));
-//        return item;
-//    }
-
     public ActionListener loadLogAction() {
         return event -> {
             FileDialog dialog = new FileDialog(parent);
