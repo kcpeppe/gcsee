@@ -62,6 +62,7 @@ public class GCSee extends JFrame {
             ExecutorService pool = Executors.newSingleThreadExecutor();
             pool.execute(() -> {
                 GCToolKit toolKit = new GCToolKit();
+                toolKit.loadAggregation(new TableDataAggregation());
                 toolKit.loadAggregation(new HeapOccupancyAggregation());
                 toolKit.loadAggregation(new PauseTimeAggregation());
                 toolKit.loadAggregation(new AllocationRateAggregation());
@@ -82,7 +83,9 @@ public class GCSee extends JFrame {
     }
 
     private void buildSummaryTable(JavaVirtualMachine jvm) {
-
+        TableDataAggregation aggregation = jvm.getAggregation(TableDataAggregation.class).get();
+        TableDataJPanel panel = new TableDataJPanel(aggregation);
+        pane.addTab("Summary", panel);
     }
 
     private void buildHeapAfterGC(JavaVirtualMachine jvm) {
