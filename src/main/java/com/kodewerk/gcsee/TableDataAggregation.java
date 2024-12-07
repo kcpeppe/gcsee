@@ -111,7 +111,7 @@ public class TableDataAggregation extends Aggregation {
         tableData[0][0] = "Log Duration";
         tableData[0][1] = Double.toString(round(logDuration, 3)) + " sec";
         tableData[1][0] = "Total Pause Time";
-        tableData[1][1] = Double.toString(round(logDuration, 3)) + " sec";
+        tableData[1][1] = Double.toString(round(totalPauseTime, 3)) + " sec";
         tableData[2][0] = "Pause Interval";
         tableData[2][1] = Double.toString( round( logDuration / (double) totalNumberOfPauseEvents, 3)) + " sec";
         tableData[3][0] = "Total Concurrent Time";
