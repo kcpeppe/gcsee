@@ -1,0 +1,28 @@
+// Copyright (c) Microsoft Corporation.
+// Copyright (c) Kirk Pepperdine
+// Licensed under the MIT License.
+package com.kodewerk.gcsee.event.zgc;
+
+public class ZGCAllocatedSummary {
+    private final long markEnd;
+    private final long relocateStart;
+    private final long relocateEnd;
+
+    public ZGCAllocatedSummary(long markEnd, long relocateStart, long relocateEnd) {
+        this.markEnd = markEnd;
+        this.relocateStart = relocateStart;
+        this.relocateEnd = relocateEnd;
+    }
+
+    public long getMarkEnd() {
+        return markEnd;
+    }
+
+    public long getRelocateStart() {
+        return relocateStart;
+    }
+
+    public long getRelocateEnd() {
+        return relocateEnd;
+    }
+}

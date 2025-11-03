@@ -1,0 +1,19 @@
+// Copyright (c) Microsoft Corporation.
+// Copyright (c) Kirk Pepperdine
+// Licensed under the MIT License.
+package com.kodewerk.gcsee.event.generational;
+
+import com.kodewerk.gcsee.event.GCCause;
+import com.kodewerk.gcsee.event.GarbageCollectionTypes;
+import com.kodewerk.gcsee.time.DateTimeStamp;
+
+public class YoungGC extends GenerationalGCPauseEvent {
+
+    public YoungGC(DateTimeStamp timeStamp, GarbageCollectionTypes gcType, GCCause cause, double duration) {
+        super(timeStamp, gcType, cause, duration);
+    }
+
+    public YoungGC(DateTimeStamp timeStamp, GCCause cause, double duration) {
+        this(timeStamp, GarbageCollectionTypes.GC, cause, duration);
+    }
+}
