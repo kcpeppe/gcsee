@@ -1,0 +1,11 @@
+package com.kodewerk.gcsee.online.statistics;
+
+public class NotEnoughSampleException extends ArithmeticException {
+    public NotEnoughSampleException() {
+        super();
+    }
+
+    public NotEnoughSampleException(String s) {
+        super(s);
+    }
+}

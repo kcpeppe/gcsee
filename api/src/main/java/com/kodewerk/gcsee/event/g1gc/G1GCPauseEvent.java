@@ -1,0 +1,165 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+package com.kodewerk.gcsee.event.g1gc;
+
+import com.kodewerk.gcsee.event.CPUSummary;
+import com.kodewerk.gcsee.event.GCCause;
+import com.kodewerk.gcsee.event.GarbageCollectionTypes;
+import com.kodewerk.gcsee.event.MemoryPoolSummary;
+import com.kodewerk.gcsee.event.ReferenceGCSummary;
+import com.kodewerk.gcsee.event.RegionSummary;
+import com.kodewerk.gcsee.event.SurvivorMemoryPoolSummary;
+import com.kodewerk.gcsee.time.DateTimeStamp;
+
+public abstract class G1GCPauseEvent extends G1GCEvent {
+
+    private static final MemoryPoolSummary NULL_POOL = new MemoryPoolSummary(-1L, -1L, -1L, -1L);
+    private static final RegionSummary NULL_REGION = new RegionSummary(-1, -1, -1);
+
+    private MemoryPoolSummary eden;
+    private SurvivorMemoryPoolSummary survivor;
+    private MemoryPoolSummary old;
+    private MemoryPoolSummary humongous;
+    private MemoryPoolSummary heap;
+    private MemoryPoolSummary permOrMetaspace;
+    private MemoryPoolSummary classSpace;
+    private ReferenceGCSummary referenceGCSummary = null;
+
+    private RegionSummary edenRegion;
+    private RegionSummary survivorRegion;
+    private RegionSummary oldRegion;
+    private RegionSummary humongousRegion;
+    private RegionSummary archiveRegion;
+
+    private CPUSummary cpuSummary;
+    private int heapRegionSize;
+
+    public G1GCPauseEvent(DateTimeStamp timeStamp, GarbageCollectionTypes type, GCCause cause, double duration) {
+        super(timeStamp, type, cause, duration);
+    }
+
+    public void addMemorySummary(MemoryPoolSummary eden, SurvivorMemoryPoolSummary survivor, MemoryPoolSummary heap) {
+        this.eden = eden;
+        this.survivor = survivor;
+        this.heap = heap;
+    }
+
+    public void addMemorySummary(MemoryPoolSummary heap) {
+        this.addMemorySummary(null, null, heap);
+    }
+
+    public void addMemorySummary(MemoryPoolSummary eden,
+                                 SurvivorMemoryPoolSummary survivor,
+                                 MemoryPoolSummary old,
+                                 MemoryPoolSummary humongous,
+                                 MemoryPoolSummary heap) {
+        this.eden = eden;
+        this.survivor = survivor;
+        this.old = old;
+        this.humongous = humongous;
+        this.heap = heap;
+    }
+
+    public void addPermOrMetaSpaceRecord(MemoryPoolSummary permOrMetaspaceRecord) {
+       addPermOrMetaSpaceRecord(permOrMetaspaceRecord, null);
+    }
+
+    public void addPermOrMetaSpaceRecord(MemoryPoolSummary permOrMetaspaceRecord, MemoryPoolSummary classSpace) {
+        this.permOrMetaspace = permOrMetaspaceRecord;
+        this.classSpace =  classSpace;
+    }
+
+    public void addCPUSummary(CPUSummary summary) {
+        this.cpuSummary = summary;
+    }
+
+    public void addRegionSummary(RegionSummary eden, RegionSummary survivor, RegionSummary old, RegionSummary humongous, RegionSummary archive) {
+        this.edenRegion = eden;
+        this.survivorRegion = survivor;
+        this.oldRegion = old;
+        this.humongousRegion = humongous;
+        this.archiveRegion = archive;
+    }
+
+    public RegionSummary getEdenRegionSummary() {
+        return this.edenRegion == null ? NULL_REGION : this.edenRegion;
+    }
+
+    public RegionSummary getSurvivorRegionSummary() {
+        return this.survivorRegion == null ? NULL_REGION : this.survivorRegion;
+    }
+
+    public RegionSummary getOldRegionSummary() {
+        return this.oldRegion == null ? NULL_REGION : this.oldRegion;
+    }
+
+    public RegionSummary getHumongousRegionSummary() {
+        return this.humongousRegion == null ? NULL_REGION : this.humongousRegion;
+    }
+
+    public RegionSummary getArchiveRegionSummary() {
+        return this.archiveRegion == null ? NULL_REGION : this.archiveRegion;
+    }
+
+    public MemoryPoolSummary getEden() {
+        return this.eden;
+    }
+
+    public SurvivorMemoryPoolSummary getSurvivor() {
+        return this.survivor;
+    }
+
+    public MemoryPoolSummary getHeap() {
+        return this.heap;
+    }
+
+    public MemoryPoolSummary getPermOrMetaspace() {
+        return this.permOrMetaspace;
+    }
+
+    public MemoryPoolSummary getHumongous() {
+        return humongous;
+    }
+
+    public MemoryPoolSummary getOld() {
+        return old;
+    }
+
+    public MemoryPoolSummary getClassSpace() {
+        return classSpace;
+    }
+
+    public MemoryPoolSummary getTenured() {
+        if ((getEden() == null) || (getHeap() == null)) {
+            return NULL_POOL;
+        } else if (getSurvivor() == null) {
+            return getHeap().minus(getEden());
+        } else {
+            final RegionSummary summary = getArchiveRegionSummary();
+            final long archiveRegionByteBefore = summary.getBefore() * heapRegionSize * 1024L;
+            final long archiveRegionByteAfter = summary.getAfter() * heapRegionSize * 1024L;
+            final long archiveRegionByteAssigned = summary.getAssigned() * heapRegionSize * 1024L;
+
+            return new MemoryPoolSummary(getHeap().getOccupancyBeforeCollection() - this.getEden().getOccupancyBeforeCollection() - getSurvivor().getOccupancyBeforeCollection() - archiveRegionByteAssigned,
+                    getHeap().getSizeBeforeCollection() - getEden().getSizeBeforeCollection() - getSurvivor().getOccupancyBeforeCollection() - archiveRegionByteBefore,
+                    getHeap().getOccupancyAfterCollection() - getEden().getOccupancyAfterCollection() - getSurvivor().getOccupancyAfterCollection() - archiveRegionByteAssigned,
+                    getHeap().getSizeAfterCollection() - getEden().getSizeAfterCollection() - getSurvivor().getOccupancyAfterCollection() - archiveRegionByteAfter);
+        }
+    }
+
+    public void add(ReferenceGCSummary summary) {
+        this.referenceGCSummary = summary;
+    }
+
+    public ReferenceGCSummary getReferenceGCSummary() {
+        return this.referenceGCSummary;
+    }
+
+    public CPUSummary getCpuSummary() {
+        return this.cpuSummary;
+    }
+
+    public void addHeapRegionSize(int heapRegionSize) {
+        this.heapRegionSize = heapRegionSize;
+    }
+}
