@@ -3,8 +3,8 @@
 // Licensed under the MIT License.
 package com.kodewerk.gcsee.event;
 
-import com.microsoft.gctoolkit.event.jvm.JVMEvent;
-import com.microsoft.gctoolkit.time.DateTimeStamp;
+import com.kodewerk.gcsee.event.jvm.JVMEvent;
+import com.kodewerk.gcsee.time.DateTimeStamp;
 
 import java.util.Objects;
 

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Copyright (c) Kirk Pepperdine
 // Licensed under the MIT License.
-package com.microsoft.gctoolkit.event.jvm;
+package com.kodewerk.gcsee.event.jvm;
 
-import com.microsoft.gctoolkit.event.MemoryPoolSummary;
+import com.kodewerk.gcsee.event.MemoryPoolSummary;
 
 public class PermGenSummary extends MemoryPoolSummary {
 

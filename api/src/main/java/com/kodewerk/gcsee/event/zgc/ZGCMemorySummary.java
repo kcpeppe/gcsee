@@ -1,6 +1,6 @@
 // Copyright (c) Kirk Pepperdine
 // Licensed under the MIT License.
-package com.microsoft.gctoolkit.event.zgc;
+package com.kodewerk.gcsee.event.zgc;
 
 public class ZGCMemorySummary {
     private final long occupancyBefore;

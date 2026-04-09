@@ -2,7 +2,7 @@
 // Copyright (c) Kirk Pepperdine
 // Licensed under the MIT License.
 
-package com.microsoft.gcsee.aggregator;
+package com.kodewerk.gcsee.aggregator;
 
 import com.gcsee.gcsee.event.jvm.JVMEvent;
 

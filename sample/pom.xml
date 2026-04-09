@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.kodewerk.gcsee</groupId>
+        <artifactId>gcsee</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gcsee-sample</artifactId>
+    <description>Sample application for GCSee usage</description>
+    <url>${project.parent.url}</url>
+    <name>GCSee Sample</name>
+    <properties>
+        <gcLogFile>../gclogs/preunified/cms/defnew/details/defnew.log</gcLogFile>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.kodewerk.gcsee</groupId>
+            <artifactId>gcsee-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.kodewerk.gcsee</groupId>
+            <artifactId>gcsee-parser</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.kodewerk.gcsee</groupId>
+            <artifactId>gcsee-vertx</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemProperties>
+                        <property>
+                            <name>gcLogFile</name>
+                            <value>${gcLogFile}</value>
+                        </property>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <executable>java</executable>
+                    <arguments>
+                        <argument>--module-path</argument>
+                        <!-- Create the modulepath using all project dependencies and project build directory -->
+                        <modulepath />
+                        <argument>--module</argument>
+                        <argument>com.kodewerk.gcsee.sample/com.kodewerk.gcsee.sample.Main</argument>
+                        <argument>${gcLogFile}</argument>
+                    </arguments>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
