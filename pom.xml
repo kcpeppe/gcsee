@@ -53,6 +53,7 @@
         <maven.directory-maven-plugin.version>1.0</maven.directory-maven-plugin.version>
         <maven.enforcer-plugin.version>3.6.1</maven.enforcer-plugin.version>
         <maven.exec-plugin.version>3.5.1</maven.exec-plugin.version>
+        <maven.gpg-plugin.version>3.2.7</maven.gpg-plugin.version>
         <maven.install-plugin.version>3.1.4</maven.install-plugin.version>
         <maven.jacoco-plugin.version>0.8.13</maven.jacoco-plugin.version>
         <maven.jar-plugin.version>3.4.2</maven.jar-plugin.version>
@@ -186,6 +187,10 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
                     <version>${maven.deploy-plugin.version}</version>
+                    <!-- Disable default deploy — JReleaser handles publishing -->
+                    <configuration>
+                        <skip>true</skip>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -206,6 +211,11 @@
                             </configuration>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven.gpg-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -329,6 +339,11 @@
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${maven.jacoco-plugin.version}</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.jreleaser</groupId>
+                    <artifactId>jreleaser-maven-plugin</artifactId>
+                    <version>${jreleaser.plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -355,6 +370,12 @@
     </build>
 
     <profiles>
+        <!--
+            release profile: builds sources + javadoc jars, GPG-signs everything,
+            and deploys to a local staging directory for JReleaser to pick up.
+
+            Activate with: ./mvnw -Prelease deploy
+        -->
         <profile>
             <id>release</id>
             <build>
@@ -375,6 +396,7 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <configuration>
+                            <!-- parser and vertx are internal modules — skip their javadoc -->
                             <skippedModules>parser,vertx</skippedModules>
                         </configuration>
                         <executions>
@@ -387,11 +409,159 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <!--
+                            GPG-sign all artifacts.
+                            Requires JRELEASER_GPG_PASSPHRASE / JRELEASER_GPG_SECRET_KEY
+                            to be available (set as GitHub Actions secrets).
+                            In CI the pinentry-mode loopback avoids interactive prompts.
+                        -->
                         <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-release-plugin</artifactId>
+                        <artifactId>maven-gpg-plugin</artifactId>
                         <configuration>
-                            <autoVersionSubmodules>true</autoVersionSubmodules>
-                            <preparationGoals>clean site</preparationGoals>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!--
+                            Deploy to a local staging directory instead of directly to Maven Central.
+                            JReleaser will then upload the staged artifacts in a second step.
+                        -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>false</skip>
+                            <altDeploymentRepository>
+                                local::file:${project.build.directory}/staging-deploy
+                            </altDeploymentRepository>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+            jreleaser profile: runs JReleaser to:
+              1. Create a GitHub Release with auto-generated changelog
+              2. Publish staged artifacts to Maven Central via the Central Publisher Portal API
+
+            Activate with: ./mvnw -Pjreleaser jreleaser:full-release
+            (run from the project root after the release profile deploy has completed)
+        -->
+        <profile>
+            <id>jreleaser</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jreleaser</groupId>
+                        <artifactId>jreleaser-maven-plugin</artifactId>
+                        <inherited>false</inherited>
+                        <configuration>
+                            <jreleaser>
+                                <environment>
+                                    <!--
+                                        JReleaser reads secrets from environment variables.
+                                        Set these as GitHub Actions secrets:
+                                          JRELEASER_GITHUB_TOKEN       — GitHub PAT (or use GITHUB_TOKEN)
+                                          JRELEASER_MAVENCENTRAL_USERNAME — Sonatype Central username
+                                          JRELEASER_MAVENCENTRAL_PASSWORD — Sonatype Central token/password
+                                          JRELEASER_GPG_PASSPHRASE     — GPG key passphrase
+                                          JRELEASER_GPG_SECRET_KEY     — GPG secret key (armored, base64)
+                                          JRELEASER_GPG_PUBLIC_KEY     — GPG public key (armored, base64)
+                                    -->
+                                </environment>
+
+                                <signing>
+                                    <active>ALWAYS</active>
+                                    <armored>true</armored>
+                                </signing>
+
+                                <deploy>
+                                    <maven>
+                                        <mavenCentral>
+                                            <sonatype>
+                                                <active>RELEASE</active>
+                                                <url>https://central.sonatype.com/api/v1/publisher</url>
+                                                <!--
+                                                    Glob pattern matching the local staging directory
+                                                    that maven-deploy-plugin wrote artifacts into.
+                                                    The ** matches all submodule target/staging-deploy paths.
+                                                -->
+                                                <stagingRepositories>
+                                                    <stagingRepository>**/target/staging-deploy</stagingRepository>
+                                                </stagingRepositories>
+                                            </sonatype>
+                                        </mavenCentral>
+                                    </maven>
+                                </deploy>
+
+                                <release>
+                                    <github>
+                                        <owner>kcpeppe</owner>
+                                        <name>gcsee</name>
+                                        <overwrite>true</overwrite>
+                                        <changelog>
+                                            <formatted>ALWAYS</formatted>
+                                            <labelers>
+                                                <labeler>
+                                                    <label>bug</label>
+                                                    <title>fix:</title>
+                                                </labeler>
+                                                <labeler>
+                                                    <label>bug</label>
+                                                    <title>Fix</title>
+                                                </labeler>
+                                                <labeler>
+                                                    <label>enhancement</label>
+                                                    <title>feat:</title>
+                                                </labeler>
+                                                <labeler>
+                                                    <label>enhancement</label>
+                                                    <title>Feature</title>
+                                                </labeler>
+                                                <labeler>
+                                                    <label>dependencies</label>
+                                                    <contributor>dependabot[bot]</contributor>
+                                                </labeler>
+                                            </labelers>
+                                            <categories>
+                                                <category>
+                                                    <title>🚀 Features</title>
+                                                    <labels>enhancement</labels>
+                                                    <order>1</order>
+                                                </category>
+                                                <category>
+                                                    <title>🐛 Bug Fixes</title>
+                                                    <labels>bug</labels>
+                                                    <order>2</order>
+                                                </category>
+                                                <category>
+                                                    <title>⬆️ Dependencies</title>
+                                                    <labels>dependencies</labels>
+                                                    <order>3</order>
+                                                </category>
+                                            </categories>
+                                            <hide>
+                                                <contributors>
+                                                    <contributor>GitHub</contributor>
+                                                    <contributor>dependabot[bot]</contributor>
+                                                </contributors>
+                                            </hide>
+                                        </changelog>
+                                    </github>
+                                </release>
+                            </jreleaser>
                         </configuration>
                     </plugin>
                 </plugins>
