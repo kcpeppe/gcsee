@@ -4,10 +4,10 @@
 package com.kodewerk.gcsee.jvm;
 
 import com.kodewerk.gcsee.aggregator.EventSource;
-import com.kodewerk.gcsee.parser.datatype.TripleState;
 import com.kodewerk.gcsee.time.DateTimeStamp;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -15,47 +15,28 @@ import static com.kodewerk.gcsee.aggregator.EventSource.SAFEPOINT;
 import static com.kodewerk.gcsee.aggregator.EventSource.SURVIVOR;
 import static com.kodewerk.gcsee.jvm.SupportedFlags.*;
 
-/*
-    Index guide
-
-    APPLICATION_STOPPED_TIME,                   //  0
-    APPLICATION_CONCURRENT_TIME,                //  1
-
-    DEFNEW,                                     //  2
-    PARNEW,                                     //  3
-    CMS,                                        //  4
-    ICMS,                                       //  5
-    PARALLELGC,                                 //  6
-    PARALLELOLDGC,                              //  7
-    SERIAL,                                     //  8
-    G1GC,                                       //  9
-    ZGC,                                        // 10
-    SHENANDOAH,                                 // 11
-
-    GC_DETAILS,                                 // 12
-    TENURING_DISTRIBUTION,                      // 13
-    GC_CAUSE,                                   // 14
-    CMS_DEBUG_LEVEL_1,                          // 15
-    ADAPTIVE_SIZING,                            // 16
-
-    JDK70,                                      // 17
-    PRE_JDK70_40,                               // 18
-    JDK80,                                      // 19
-    UNIFIED_LOGGING,                            // 20
-
-    PRINT_HEAP_AT_GC,                           // 21
-    RSET_STATS,                                 // 22
-
-    PRINT_REFERENCE_GC,                         // 23
-    MAX_TENURING_THRESHOLD_VIOLATION,           // 24
-    TLAB_DATA,                                  // 25
-    PRINT_PROMOTION_FAILURE,                    // 26
-    PRINT_FLS_STATISTICS                        // 27
-    PRINT_CPU_TIMES                             // 28
-    GENERATIONAL_ZGC                            // 29
- */
-
 public class Diary {
+
+    /**
+     * Represents the three possible states of a log property during discovery:
+     * not yet observed, observed as true, or observed as false.
+     * Private to Diary — this is an implementation detail of how diary state is tracked.
+     */
+    private enum TripleState {
+        UNKNOWN, TRUE, FALSE;
+
+        static TripleState valueOf(boolean value) {
+            return value ? TRUE : FALSE;
+        }
+
+        boolean isKnown() { return this != UNKNOWN; }
+        boolean isTrue()  { return this == TRUE; }
+        boolean isFalse() { return this == FALSE; }
+
+        public String toString() {
+            return this.name().toLowerCase(Locale.ROOT);
+        }
+    }
 
     private final TripleState[] states;
     private DateTimeStamp timeOfFirstEvent;

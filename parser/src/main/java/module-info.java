@@ -8,21 +8,6 @@ module com.kodewerk.gcsee.parser {
     requires com.kodewerk.gcsee.api;
     requires java.logging;
 
-    exports com.kodewerk.gcsee.parser to
-            com.kodewerk.gcsee.api;
-
-    exports com.kodewerk.gcsee.parser.io to
-            com.kodewerk.gcsee.api;
-
-    exports com.kodewerk.gcsee.parser.jvm to
-            com.kodewerk.gcsee.api;
-
-    exports com.kodewerk.gcsee.parser.unified to
-            com.kodewerk.gcsee.api;
-
-    exports com.kodewerk.gcsee.parser.vmops to
-            com.kodewerk.gcsee.api;
-
     provides com.kodewerk.gcsee.jvm.Diarizer with
             com.kodewerk.gcsee.parser.jvm.PreUnifiedDiarizer,
             com.kodewerk.gcsee.parser.jvm.UnifiedDiarizer;
