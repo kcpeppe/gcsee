@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Copyright (c) Kirk Pepperdine
 // Licensed under the MIT License.
-package com.kodewerk.gcsee.event.g1gc;kodewerk.gcsee
+package com.kodewerk.gcsee.event.g1gc;
 
 import com.kodewerk.gcsee.event.GCCause;
 import com.kodewerk.gcsee.event.GarbageCollectionTypes;

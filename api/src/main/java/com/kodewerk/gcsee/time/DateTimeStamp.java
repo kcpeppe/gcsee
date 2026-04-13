@@ -30,7 +30,7 @@ public class DateTimeStamp implements Comparable<DateTimeStamp> {
     // Represents the time from Epoch
     // In the case where we have timestamps, the epoch is start of JVM
     // In the case where we only have date stamps, the epoch is 1970:01:01:00:00:00.000::UTC+0
-    // All calculations in GCToolKit make use of the double, timeStamp.
+    // All calculations in GCSee make use of the double, timeStamp.
     // Calculations are based on the startup Epoch of 0.000 seconds. This isn't always the case and
     // certainly isn't the case when only date stamp is present. In these cases, start time is estimated.
     // This is surprisingly difficult to do thus use of timestamp is highly recommended.

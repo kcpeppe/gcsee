@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Copyright (c) Kirk Pepperdine
 // Licensed under the MIT License.
-package com.kodewerk.gcsee
+package com.kodewerk.gcsee;
 
 import com.kodewerk.gcsee.aggregator.Aggregation;
 import com.kodewerk.gcsee.aggregator.Aggregator;
@@ -144,7 +144,7 @@ public class GCSee {
      * @param logFile GCLogFile DataSource
      * @return JavaVirtualMachine implementation.
      */
-    private JavaVirtualMachine loadJavaVirtualMachine(GCLogFile logFile) {
+    private JavaVirtualMachine loadJavaVirtualMachine(GCLogFile logFile) throws IOException {
         return logFile.getJavaVirtualMachine();
     }
 

@@ -3,9 +3,9 @@
 // Licensed under the MIT License.
 package com.kodewerk.gcsee.event.g1gc;
 
-import com..event.GCCause;
-import com..event.GarbageCollectionTypes;
-import com..time.DateTimeStamp;
+import com.kodewerk.gcsee.event.GCCause;
+import com.kodewerk.gcsee.event.GarbageCollectionTypes;
+import com.kodewerk.gcsee.time.DateTimeStamp;
 
 /**
  * Pause phase

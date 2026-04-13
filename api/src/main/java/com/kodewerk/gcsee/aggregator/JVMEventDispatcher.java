@@ -4,7 +4,7 @@
 
 package com.kodewerk.gcsee.aggregator;
 
-import com.gcsee.gcsee.event.jvm.JVMEvent;
+import com.kodewerk.gcsee.event.jvm.JVMEvent;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

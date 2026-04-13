@@ -3,7 +3,7 @@
 // Licensed under the MIT License.
 package com.kodewerk.gcsee.jvm;
 
-import com.kodewerk.gcsee.GCToolKit;
+import com.kodewerk.gcsee.GCSee;
 import com.kodewerk.gcsee.aggregator.Aggregation;
 import com.kodewerk.gcsee.aggregator.Aggregator;
 import com.kodewerk.gcsee.aggregator.EventSource;
@@ -169,7 +169,7 @@ public abstract class AbstractJavaVirtualMachine implements JavaVirtualMachine {
             Aggregation aggregation = aggregator.aggregation();
             aggregatedData.put(aggregation.getClass(), aggregation);
             generatedEvents.stream().filter(aggregator::aggregates).forEach(eventSource -> {
-                GCToolKit.LOG_DEBUG_MESSAGE(() -> "Registering " + aggregator.getClass().getName() + " with " + eventSource.toChannel());
+                GCSee.LOG_DEBUG_MESSAGE(() -> "Registering " + aggregator.getClass().getName() + " with " + eventSource.toChannel());
                 finishLine.register();
                 aggregator.onCompletion(finishLine::arriveAndDeregister);
                 JVMEventChannelAggregator eventChannelAggregator = new JVMEventChannelAggregator(eventSource.toChannel(), aggregator);
@@ -184,7 +184,7 @@ public abstract class AbstractJavaVirtualMachine implements JavaVirtualMachine {
             } else {
                 LOGGER.log(Level.INFO, "No Aggregations have been registered, DataSource will not be analysed.");
                 LOGGER.log(Level.INFO, "Is there a module containing Aggregation classes on the module-path");
-                LOGGER.log(Level.INFO, "Is GCToolKit::loadAggregationsFromServiceLoader() or GCToolKit::loadAggregation(Aggregation) being invoked?");
+                LOGGER.log(Level.INFO, "Is GCSee::loadAggregationsFromServiceLoader() or GCSee::loadAggregation(Aggregation) being invoked?");
             }
 
             // Fill in termination info.

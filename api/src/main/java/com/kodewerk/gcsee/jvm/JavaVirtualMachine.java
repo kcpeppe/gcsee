@@ -4,7 +4,7 @@
 package com.kodewerk.gcsee.jvm;
 
 
-import com.kodewerk.gcsee.GCToolKit;
+
 import com.kodewerk.gcsee.aggregator.Aggregation;
 import com.kodewerk.gcsee.aggregator.Aggregator;
 import com.kodewerk.gcsee.io.DataSource;
@@ -17,7 +17,7 @@ import java.util.Optional;
 
 /**
  * JavaVirtualMachine is a representation of the JVM state obtained by analyzing a GC log file.
- * An instance of JavaVirtualMachine is created by calling {@link GCToolKit#analyze(DataSource)}
+ * An instance of JavaVirtualMachine is created by calling {@link GCSee#analyze(DataSource)}
  */
 public interface JavaVirtualMachine {
 
