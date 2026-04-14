@@ -69,15 +69,14 @@ jobs:
           git commit -m "Release ${{ github.event.inputs.release_version }}"
 
       # -----------------------------------------------------------------------
-      # Step 2: Build, sign and stage artifacts to target/staging-deploy
+      # Step 2: Build and stage artifacts to target/staging-deploy
+      # GPG signing is skipped here — JReleaser handles signing in the next step
       # -----------------------------------------------------------------------
       - name: Build and stage artifacts
-        run: ./mvnw -B -Prelease deploy
-        env:
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        run: ./mvnw -B -Prelease deploy -Dgpg.skip=true
 
       # -----------------------------------------------------------------------
-      # Step 3: Run JReleaser — creates GitHub Release + publishes to Maven Central
+      # Step 3: Run JReleaser — creates GitHub Release + signs + publishes to Maven Central
       # -----------------------------------------------------------------------
       - name: JReleaser full-release
         run: ./mvnw -B -Pjreleaser jreleaser:full-release
