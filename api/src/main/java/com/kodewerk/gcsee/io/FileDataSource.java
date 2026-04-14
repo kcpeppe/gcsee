@@ -25,7 +25,7 @@ public abstract class FileDataSource<T> implements DataSource<T> {
 
     /**
      * The Diary contains a summary of important properties of the log that will be used in orchestrating the
-     * setup and configuration of the internal components of GCToolkit.
+     * setup and configuration of the internal components of GCSee.
      * @return a diary.
      */
     abstract public Diary diary() throws IOException;

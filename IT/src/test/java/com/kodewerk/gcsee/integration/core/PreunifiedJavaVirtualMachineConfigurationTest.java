@@ -31,13 +31,13 @@ public class PreunifiedJavaVirtualMachineConfigurationTest {
     }
 
     private void smokeTest(GCLogFile log, int[] endStartTimes ) {
-        GCSee gcToolKit = new GCSee();
-        gcToolKit.loadAggregationsFromServiceLoader();
+        GCSee gcSee = new GCSee();
+        gcSee.loadAggregationsFromServiceLoader();
         TestTimeAggregation aggregation = new TestTimeAggregation();
-        gcToolKit.loadAggregation(aggregation);
+        gcSee.loadAggregation(aggregation);
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(log);
+            machine = gcSee.analyze(log);
             aggregation = machine.getAggregation(PreunifiedJavaVirtualMachineConfigurationTest.TestTimeAggregation.class).get();
         } catch (IOException e) {
             fail(e.getMessage());

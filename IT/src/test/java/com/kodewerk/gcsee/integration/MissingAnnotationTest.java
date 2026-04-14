@@ -22,12 +22,12 @@ public class MissingAnnotationTest {
 
     @SuppressWarnings("unchecked")
     private void workFlow(Aggregation aggregation, Class clazz) {
-        GCSee gcToolKit = new GCSee();
+        GCSee gcSee = new GCSee();
         // Load our test aggregation instead of calling GCSee::loadAggregationsFromServiceLoader
-        gcToolKit.loadAggregation(aggregation);
+        gcSee.loadAggregation(aggregation);
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(new SingleGCLogFile(new TestLogFile("cms/defnew/details/defnew.log").getFile().toPath()));
+            machine = gcSee.analyze(new SingleGCLogFile(new TestLogFile("cms/defnew/details/defnew.log").getFile().toPath()));
         } catch (IOException e) {
             fail(e.getMessage());
         }

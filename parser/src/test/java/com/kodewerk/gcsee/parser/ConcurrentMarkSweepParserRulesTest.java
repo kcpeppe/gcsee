@@ -47,7 +47,7 @@ public class ConcurrentMarkSweepParserRulesTest implements CMSPatterns {
         //The IDE eats messages printed to the log file.. thus this information *is* printed to stout
         GCLogTrace trace = rule.parse(string);
         assertNotNull(trace);
-        // Enable debugging by setting gctoolkit.debug to true
+        // Enable debugging by setting gcsee.debug to true
         GCSee.LOG_DEBUG_MESSAGE(() -> {
             StringBuilder sb = new StringBuilder("matches groups " + trace.groupCount());
             for (int i = 0; i <= trace.groupCount(); i++) {

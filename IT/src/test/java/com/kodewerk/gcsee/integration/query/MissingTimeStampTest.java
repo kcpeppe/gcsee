@@ -30,13 +30,13 @@ public class MissingTimeStampTest {
          * The log files can be either in text, zip, or gzip format.
          */
         GCLogFile logFile = new SingleGCLogFile(Path.of(gcLogFile));
-        GCSee gcToolKit = new GCSee();
+        GCSee gcSee = new GCSee();
 
         /*
          * This call will load all implementations of Aggregator that have been declared in module-info.java.
          * This mechanism makes use of Module SPI.
          */
-        gcToolKit.loadAggregationsFromServiceLoader();
+        gcSee.loadAggregationsFromServiceLoader();
 
         /*
          * The JavaVirtualMachine contains the aggregations as filled out by the Aggregators.
@@ -44,7 +44,7 @@ public class MissingTimeStampTest {
          */
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(logFile);
+            machine = gcSee.analyze(logFile);
         } catch (IOException e) {
             fail(e.getMessage());
         }

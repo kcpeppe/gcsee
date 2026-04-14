@@ -33,11 +33,11 @@ public class ZeroAggregationTest {
          * The log files can be either in text, zip, or gzip format.
          */
         GCLogFile logFile = new SingleGCLogFile(path);
-        GCSee gcToolKit = new GCSee();
+        GCSee gcSee = new GCSee();
         // Do not call GCSee::loadAggregationsFromServiceLoader
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(logFile);
+            machine = gcSee.analyze(logFile);
         } catch (IOException e) {
             fail(e.getMessage());
         }
@@ -52,12 +52,12 @@ public class ZeroAggregationTest {
     public void testSuppliedAggregation() {
         Path path = new TestLogFile("cms/defnew/details/defnew.log").getFile().toPath();
         GCLogFile logFile = new SingleGCLogFile(path);
-        GCSee gcToolKit = new GCSee();
+        GCSee gcSee = new GCSee();
         // Load our local Aggregation that will not be registered for the given log file
-        gcToolKit.loadAggregation(new ZeroAggregationTest.TestAggregation());
+        gcSee.loadAggregation(new ZeroAggregationTest.TestAggregation());
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(logFile);
+            machine = gcSee.analyze(logFile);
         } catch (IOException e) {
             fail(e.getMessage());
         }

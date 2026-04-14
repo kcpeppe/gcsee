@@ -5,7 +5,7 @@
    - for descriptions of the rules applied.
  -->
 <ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         name="GCToolkit Code Rules"
+         name="GCSee Code Rules"
          xmlns="http://pmd.sourceforge.net/ruleset/3.0.0"
          xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/3.0.0 https://pmd.sourceforge.io/ruleset_3_0_0.xsd">
     <description>

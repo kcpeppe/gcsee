@@ -41,22 +41,22 @@ public class GCSee {
 
     private static final Logger LOGGER = Logger.getLogger(GCSee.class.getName());
 
-    private static final String GCTOOLKIT_DEBUG = System.getProperty("gctoolkit.debug");
-    private static final boolean DEBUGGING = GCTOOLKIT_DEBUG != null;
+    private static final String GCSEE_DEBUG = System.getProperty("gcsee.debug");
+    private static final boolean DEBUGGING = GCSEE_DEBUG != null;
 
-    // returns true if gctoolkit.debug is set to "all" or contains "className", but does not contain "-className"
+    // returns true if gcsee.debug is set to "all" or contains "className", but does not contain "-className"
     private static boolean isDebugging(String className) {
         return DEBUGGING
-                && (GCTOOLKIT_DEBUG.isEmpty()
-                || ((GCTOOLKIT_DEBUG.contains("all") || GCTOOLKIT_DEBUG.contains(className))
-                && !GCTOOLKIT_DEBUG.contains("-" + className)));
+                && (GCSEE_DEBUG.isEmpty()
+                || ((GCSEE_DEBUG.contains("all") || GCSEE_DEBUG.contains(className))
+                && !GCSEE_DEBUG.contains("-" + className)));
     }
 
     /**
-     * Print a debug message to System.out if gctoolkit.debug is empty, is set to "all",
+     * Print a debug message to System.out if gcsee.debug is empty, is set to "all",
      * or contains "className" but does not contain "-className".
      * For example, to enable debug logging for all classes except UnifiedG1GCParser:
-     * <code>-Dgctoolkit.debug=all,-com.kodewerk.gcsee.parser.UnifiedG1GCParser</code>
+     * <code>-Dgcsee.debug=all,-com.kodewerk.gcsee.parser.UnifiedG1GCParser</code>
      *
      * @param message Supplies the message to log. If null, nothing will be logged.
      */

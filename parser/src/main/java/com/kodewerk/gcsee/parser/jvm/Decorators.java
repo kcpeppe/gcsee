@@ -52,8 +52,8 @@ public class Decorators {
      * 4) There is no known way to reliably differentiate between PID and TID. At this time, GCSee ignores these
      *    decorators.
      *
-     * Todo: GCToolkit captures time in the DateTimeStamp class. That class will capture uptime or time or both. If both
-     * are missing, GCToolkit JVMEvents will have no sense of time. It is possible that the other timing fields could fill
+     * Todo: GCSee captures time in the DateTimeStamp class. That class will capture uptime or time or both. If both
+     * are missing, GCSee JVMEvents will have no sense of time. It is possible that the other timing fields could fill
      * in cases where both the time and uptime decorators were missing.
      * @param line
      */

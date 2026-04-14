@@ -34,11 +34,11 @@ public class UnifiedJavaVirtualMachineConfigurationTest {
     }
 
     private void test(GCLogFile log, int[] endStartTimes ) {
-        GCSee gcToolKit = new GCSee();
-        gcToolKit.loadAggregationsFromServiceLoader();
+        GCSee gcSee = new GCSee();
+        gcSee.loadAggregationsFromServiceLoader();
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(log);
+            machine = gcSee.analyze(log);
         } catch (IOException e) {
             fail(e.getMessage());
         }

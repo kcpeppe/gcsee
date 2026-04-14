@@ -38,13 +38,13 @@ public class CaptureJVMTerminationEventTest {
          * The log files can be either in text, zip, or gzip format.
          */
         GCLogFile logFile = new SingleGCLogFile(Path.of(gcLogFile));
-        GCSee gcToolKit = new GCSee();
+        GCSee gcSee = new GCSee();
 
         /**
          * This call will load all implementations of Aggregator that have been declared in module-info.java.
          * This mechanism makes use of Module SPI.
          */
-        gcToolKit.loadAggregationsFromServiceLoader();
+        gcSee.loadAggregationsFromServiceLoader();
 
         /**
          * The JavaVirtualMachine contains the aggregations as filled out by the Aggregators.
@@ -54,8 +54,8 @@ public class CaptureJVMTerminationEventTest {
         JVMTerminationEventAggregation terminationAggregation = null;
         HeapOccupancyAfterCollectionSummary heapOccupancyAfterCollectionSummary = null;
         try {
-            gcToolKit.loadAggregation(new JVMTerminationEventAggregation());
-            machine = gcToolKit.analyze(logFile);
+            gcSee.loadAggregation(new JVMTerminationEventAggregation());
+            machine = gcSee.analyze(logFile);
         } catch (IOException e) {
             fail(e.getMessage());
         }

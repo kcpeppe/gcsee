@@ -41,15 +41,15 @@ public class NoModuleIntegrationTest {
          * The log files can be either in text, zip, or gzip format.
          */
         GCLogFile logFile = new SingleGCLogFile(Path.of(gcLogFile));
-        GCSee gcToolKit = new GCSee();
+        GCSee gcSee = new GCSee();
 
-        gcToolKit.loadDataSourceChannel(new VertxDataSourceChannel());
-        gcToolKit.loadJVMEventChannel(new VertxJVMEventChannel());
-        gcToolKit.loadDataSourceParser(new GenerationalHeapParser());
-        gcToolKit.loadDataSourceParser(new CMSTenuredPoolParser());
+        gcSee.loadDataSourceChannel(new VertxDataSourceChannel());
+        gcSee.loadJVMEventChannel(new VertxJVMEventChannel());
+        gcSee.loadDataSourceParser(new GenerationalHeapParser());
+        gcSee.loadDataSourceParser(new CMSTenuredPoolParser());
 
-        gcToolKit.loadAggregation(new HeapOccupancyAfterCollectionSummary());
-        gcToolKit.loadAggregation(new CollectionCycleCountsSummary());
+        gcSee.loadAggregation(new HeapOccupancyAfterCollectionSummary());
+        gcSee.loadAggregation(new CollectionCycleCountsSummary());
 
         /**
          * The JavaVirtualMachine contains the aggregations as filled out by the Aggregators.
@@ -57,7 +57,7 @@ public class NoModuleIntegrationTest {
          */
         JavaVirtualMachine machine = null;
         try {
-            machine = gcToolKit.analyze(logFile);
+            machine = gcSee.analyze(logFile);
         } catch (IOException e) {
             fail(e.getMessage());
         }
