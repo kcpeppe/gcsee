@@ -372,9 +372,14 @@
     <profiles>
         <!--
             release profile: builds sources + javadoc jars, GPG-signs everything,
-            and deploys to a local staging directory for JReleaser to pick up.
+            and deploys ALL submodule artifacts into a single root-level staging
+            directory for JReleaser to pick up.
 
-            Activate with: ./mvnw -Prelease deploy
+            ${maven.multiModuleProjectDirectory} always resolves to the root of the
+            project regardless of which submodule is currently being built, so all
+            artifacts land in one place: <root>/target/staging-deploy/
+
+            Activate with: ./mvnw -Prelease deploy -Dgpg.skip=true
         -->
         <profile>
             <id>release</id>
@@ -411,9 +416,8 @@
                     <plugin>
                         <!--
                             GPG-sign all artifacts.
-                            Requires JRELEASER_GPG_PASSPHRASE / JRELEASER_GPG_SECRET_KEY
-                            to be available (set as GitHub Actions secrets).
-                            In CI the pinentry-mode loopback avoids interactive prompts.
+                            Passphrase is read from the JRELEASER_GPG_PASSPHRASE env var
+                            via the loopback pinentry mode (no interactive prompt in CI).
                         -->
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
@@ -435,15 +439,20 @@
                     </plugin>
                     <plugin>
                         <!--
-                            Deploy to a local staging directory instead of directly to Maven Central.
-                            JReleaser will then upload the staged artifacts in a second step.
+                            Deploy all submodule artifacts into a single root-level staging
+                            directory instead of directly to Maven Central.
+                            JReleaser will upload from there in a subsequent step.
+
+                            KEY FIX: use ${maven.multiModuleProjectDirectory} (always the
+                            project root) instead of ${project.build.directory} (which would
+                            be a different directory for every submodule).
                         -->
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-deploy-plugin</artifactId>
                         <configuration>
                             <skip>false</skip>
                             <altDeploymentRepository>
-                                local::file:${project.build.directory}/staging-deploy
+                                local::file:${maven.multiModuleProjectDirectory}/target/staging-deploy
                             </altDeploymentRepository>
                         </configuration>
                     </plugin>
@@ -458,6 +467,14 @@
 
             Activate with: ./mvnw -Pjreleaser jreleaser:full-release
             (run from the project root after the release profile deploy has completed)
+
+            Required GitHub Actions secrets:
+              GITHUB_TOKEN                 — automatically provided by Actions
+              MAVENCENTRAL_USERNAME        — Sonatype Central user token username
+              MAVENCENTRAL_PASSWORD        — Sonatype Central user token password
+              JRELEASER_GPG_PASSPHRASE     — GPG key passphrase
+              JRELEASER_GPG_SECRET_KEY     — GPG secret key (armored)
+              JRELEASER_GPG_PUBLIC_KEY     — GPG public key (armored)
         -->
         <profile>
             <id>jreleaser</id>
@@ -469,19 +486,6 @@
                         <inherited>false</inherited>
                         <configuration>
                             <jreleaser>
-                                <environment>
-                                    <!--
-                                        JReleaser reads secrets from environment variables.
-                                        Set these as GitHub Actions secrets:
-                                          JRELEASER_GITHUB_TOKEN       — GitHub PAT (or use GITHUB_TOKEN)
-                                          JRELEASER_MAVENCENTRAL_USERNAME — Sonatype Central username
-                                          JRELEASER_MAVENCENTRAL_PASSWORD — Sonatype Central token/password
-                                          JRELEASER_GPG_PASSPHRASE     — GPG key passphrase
-                                          JRELEASER_GPG_SECRET_KEY     — GPG secret key (armored, base64)
-                                          JRELEASER_GPG_PUBLIC_KEY     — GPG public key (armored, base64)
-                                    -->
-                                </environment>
-
                                 <signing>
                                     <active>ALWAYS</active>
                                     <armored>true</armored>
@@ -494,12 +498,11 @@
                                                 <active>RELEASE</active>
                                                 <url>https://central.sonatype.com/api/v1/publisher</url>
                                                 <!--
-                                                    Glob pattern matching the local staging directory
-                                                    that maven-deploy-plugin wrote artifacts into.
-                                                    The ** matches all submodule target/staging-deploy paths.
+                                                    Single root-level staging directory — matches where
+                                                    maven-deploy-plugin wrote all submodule artifacts.
                                                 -->
                                                 <stagingRepositories>
-                                                    <stagingRepository>**/target/staging-deploy</stagingRepository>
+                                                    <stagingRepository>target/staging-deploy</stagingRepository>
                                                 </stagingRepositories>
                                             </sonatype>
                                         </mavenCentral>
