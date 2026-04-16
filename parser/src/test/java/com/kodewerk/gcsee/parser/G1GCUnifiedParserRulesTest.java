@@ -154,7 +154,8 @@ public class G1GCUnifiedParserRulesTest implements UnifiedG1GCPatterns, TenuredP
             CONCURRENT_UNDO_CYCLE_START,
             CONCURRENT_UNDO_CYCLE_END ,    // 70
             TENURING_SUMMARY,
-            TENURING_AGE_BREAKDOWN
+            TENURING_AGE_BREAKDOWN,
+            YOUNG_FAILURE
     };
 
     /*
@@ -218,7 +219,8 @@ public class G1GCUnifiedParserRulesTest implements UnifiedG1GCPatterns, TenuredP
                     "[7.965s][info][gc            ] GC(415) Pause Young (Concurrent Start) (G1 Evacuation Pause) 49M->30M(64M) 1.965ms",
                     "[7.981s][info][gc            ] GC(419) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 43M->16M(64M) 1.734ms",
                     "[7.984s][info][gc            ] GC(420) Pause Young (Mixed) (G1 Evacuation Pause) 26M->11M(64M) 1.453ms",
-                    "[19.869s][info][gc] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 170M->42M(1024M) 8.502ms"
+                    "[19.869s][info][gc] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 170M->42M(1024M) 8.502ms",
+                    "[46.063s][info ][gc             ] GC(2384) Pause Young (Normal) (G1 Evacuation Pause) 257M->5M(424M) 0.829ms",
             },
             {   //  9
                     "[2018-03-09T11:14:05.002-0100][12.277s][info ][gc,cpu       ] GC(0) User=0.04s Sys=0.01s Real=0.01s"
@@ -455,6 +457,9 @@ public class G1GCUnifiedParserRulesTest implements UnifiedG1GCPatterns, TenuredP
             },
             {   // 72
                     "[10.754s][trace][gc,age       ] GC(0) - age   1:    2579584 bytes,    2579584 total"
+            },
+            {   // 73
+                    "[46.083s][info ][gc             ] GC(2385) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Pinned) 257M->6M(424M) 1.048ms"
             }
 
             // Remaining lines which may not need to be parsed...

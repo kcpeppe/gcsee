@@ -23,6 +23,7 @@ public interface UnifiedG1GCPatterns extends UnifiedPatterns {
     GCParseRule META_CLASS_SPACE = new GCParseRule("META_CLASS_SPACE", "(Metaspace|class space)\\s+" + POOL_SUMMARY);
 
     String YOUNG_COLLECTION_SUB_TYPE = "(Normal|Prepare Mixed|Mixed|Concurrent Start|Concurrent End)";
+    String YOUNG_COLLECTION_FAILURE = " (\\(Evacuation Failure: Pinned\\)) ";
     String YOUNG_COLLECTION_TYPES = "(Young|Mixed|Initial Mark|Full)";
     GCParseRule G1_COLLECTION = new GCParseRule("G1_COLLECTION", "Pause " + YOUNG_COLLECTION_TYPES + " (\\(" + YOUNG_COLLECTION_SUB_TYPE + "\\) )?" + GC_CAUSE + "$");
 
@@ -52,7 +53,12 @@ public interface UnifiedG1GCPatterns extends UnifiedPatterns {
 
     //[00.170s][info ][gc           ] GC(1222) Pause Young (Allocation Failure) 19M->2M(61M) 5.221ms
     //[90.452s][info ][gc           ] GC(1459) Pause Young (G1 Evacuation Pause) 574M->4M(953M) 2.065ms
+    //[46.063s][info ][gc             ] GC(2384) Pause Young (Normal) (G1 Evacuation Pause) 257M->5M(424M) 0.829ms
+    //[46.083s][info ][gc             ] GC(2385) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Pinned) 257M->6M(424M) 1.048ms
     GCParseRule YOUNG_DETAILS = new GCParseRule("YOUNG_DETAILS", "Pause " + YOUNG_COLLECTION_TYPES + " (\\(" + YOUNG_COLLECTION_SUB_TYPE + "\\) )?" + GC_CAUSE + BEFORE_AFTER_CONFIGURED_PAUSE);
+
+    //[46.083s][info ][gc             ] GC(2385) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Pinned) 257M->6M(424M) 1.048ms
+    GCParseRule YOUNG_FAILURE = new GCParseRule("YOUNG_DETAILS", "Pause " + YOUNG_COLLECTION_TYPES + " \\(" + YOUNG_COLLECTION_SUB_TYPE + "\\) " + GC_CAUSE + YOUNG_COLLECTION_FAILURE + BEFORE_AFTER_CONFIGURED_PAUSE);
 
     GCParseRule HEAP_REGION_SIZE = new GCParseRule("HEAP_REGION_SIZE", "Heap [Rr]egion [Ss]ize: " + MEMORY_SIZE);
 

@@ -32,6 +32,8 @@ public interface G1GCPatterns extends G1GCTokens {
     //369447.597: [GC pause (young) (initial-mark) 485M->239M(512M), 0.0719290 secs]
     //369674.919: [GC pause (mixed) 482M->185M(512M), 0.0679470 secs]
     //0.583: [GC pause (G1 Evacuation Pause) (young) 24M->4561K(256M), 0.0047007 secs]
+    //[46.063s][info ][gc             ] GC(2384) Pause Young (Normal) (G1 Evacuation Pause) 257M->5M(424M) 0.829ms
+    //[46.083s][info ][gc             ] GC(2385) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Pinned) 257M->6M(424M) 1.048ms
     GCParseRule YOUNG = new GCParseRule("YOUNG", G1GC_PREFIX + YOUNG_MIXED_INITIAL_MARK_BLOCK + BEFORE_AFTER_CONFIGURED_PAUSE);
 
     //"16.603: [Full GC (System.gc())  14M->3334K(11M), 0.0230975 secs]
