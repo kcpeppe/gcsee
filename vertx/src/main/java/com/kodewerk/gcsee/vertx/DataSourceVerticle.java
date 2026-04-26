@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 /**
  * A Vert.x verticle for handling data source messages.
  */
-public class DataSourceVerticle extends AbstractVerticle {
+public class    DataSourceVerticle extends AbstractVerticle {
 
     // Logger for the DataSourceVerticle class.
     private static final Logger LOGGER = Logger.getLogger(DataSourceVerticle.class.getName());

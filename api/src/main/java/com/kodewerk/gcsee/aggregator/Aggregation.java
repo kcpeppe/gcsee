@@ -90,10 +90,47 @@ import com.kodewerk.gcsee.time.DateTimeStamp;
  */
 public abstract class Aggregation {
 
+    /**
+     * If the first line of the GC log is observed within this many seconds of
+     * the JVM origin we treat the log as untruncated and report
+     * {@link #estimatedStartTime()} as 0. Beyond this threshold the log is
+     * presumed to have been rotated and the start time is back-extrapolated
+     * from the first event we saw.
+     */
+    private static final double EFFECTIVE_LOG_START_EPSILON_SECONDS = 0.5;
+
+    /**
+     * Number of inter-event intervals we average when back-extrapolating the
+     * JVM start time from the first observed event on a (presumed-truncated)
+     * log. Five gives a stable mean without leaning on long-tail outliers.
+     */
+    private static final int FIRST_INTERVAL_SAMPLE_SIZE = 5;
+
+    /** Time of the first line in the GC log, populated from the JVMTermination event. */
     private DateTimeStamp timeOfFirstEvent = null;
+    /**
+     * Timestamp on the JVMTermination event. Initialised to {@link DateTimeStamp#baseDate()}
+     * (timestamp 0.0) which is the sentinel for "no JVMTermination has been published";
+     * a real JVMTermination always has a positive uptime.
+     */
     private DateTimeStamp timeOfTermination = DateTimeStamp.baseDate();
     private final WelfordVarianceCalculator varianceCalculator = new WelfordVarianceCalculator();
     private DateTimeStamp timeOfLastSeenEvent = null;
+
+    /**
+     * End-of-last-event uptime ({@code event.getDateTimeStamp() + event.getDuration()})
+     * for every event delivered to the owning aggregator. Used to compute the runtime
+     * when no JVMTermination event was published (truncated tail / live tailing).
+     */
+    private DateTimeStamp endOfLastReceivedEvent = null;
+
+    /** Sum of the first {@link #FIRST_INTERVAL_SAMPLE_SIZE} true inter-event intervals. */
+    private double sumOfFirstIntervals = 0.0;
+    /** Number of intervals contributing to {@link #sumOfFirstIntervals}, capped at the sample size. */
+    private int countOfFirstIntervals = 0;
+    /** Previous event's timestamp, used to compute the next interval. Independent of the
+     *  pre-existing {@code timeOfLastSeenEvent} (which feeds the legacy variance calculator). */
+    private DateTimeStamp previousEventTimeStamp = null;
 
     /**
      * Constructor for the module SPI
@@ -131,34 +168,79 @@ public abstract class Aggregation {
     }
 
     /**
-     * Estimates the start time of the log based on the available data.
+     * Estimates the JVM start time from the available log data.
      * <p>
-     * If the first event does not have a timestamp, the method returns the time of the first event minus the variance of GC frequency.
-     * <p>
-     * If the timestamp is present and the timestamp of the first event is greater than the variance, the method returns the timestamp minus the variance.
-     * However, if the resulting timestamp is negative, the method returns the time of the first event instead, since a negative timestamp is not possible.
+     * The first line of the GC log carries an uptime which is recorded on
+     * {@link com.kodewerk.gcsee.jvm.Diary} during parsing and propagated here through
+     * the JVMTermination event. Two cases:
+     * <ul>
+     *   <li>If that uptime is at most {@value #EFFECTIVE_LOG_START_EPSILON_SECONDS} seconds
+     *       the log is treated as untruncated — the JVM started essentially at log time
+     *       0 and {@link DateTimeStamp#baseDate()} is returned.</li>
+     *   <li>Otherwise the log is presumed to have been rotated and the JVM was already
+     *       running before we saw any log line. The start is back-extrapolated as
+     *       {@code timeOfFirstEvent − meanInterval}, where {@code meanInterval} is the
+     *       mean of the first {@value #FIRST_INTERVAL_SAMPLE_SIZE} inter-event intervals
+     *       observed by the owning aggregator.</li>
+     * </ul>
+     * Falls back to {@code timeOfFirstEvent} when no intervals are available (e.g. an
+     * aggregator that received only a single event), and to {@code baseDate()} when no
+     * events were observed at all.
      *
-     * @return The estimated start time of the log based on the available data
+     * @return The estimated JVM start time
      */
     public DateTimeStamp estimatedStartTime() {
-        double sd = Math.sqrt(varianceCalculator.getValue());
-        if (!timeOfFirstEvent.hasTimeStamp()) {
-            return timeOfFirstEvent.minus(sd);
+        if (timeOfFirstEvent == null) {
+            return DateTimeStamp.baseDate();
         }
-
-        final DateTimeStamp estimatedStartTime = timeOfFirstEvent.minus(sd);
-        if (!estimatedStartTime.hasTimeStamp()) {
-            return timeOfFirstEvent;
-        } else {
-            return estimatedStartTime;
+        if (timeOfFirstEvent.hasTimeStamp()
+                && timeOfFirstEvent.toSeconds() <= EFFECTIVE_LOG_START_EPSILON_SECONDS) {
+            return DateTimeStamp.baseDate();
         }
+        if (countOfFirstIntervals > 0) {
+            double meanInterval = sumOfFirstIntervals / countOfFirstIntervals;
+            DateTimeStamp estimate = timeOfFirstEvent.minus(meanInterval);
+            // DateTimeStamp clamps negative timestamps to NaN; in that case the
+            // back-extrapolation is unsupported and we fall back to first-event time.
+            if (estimate.hasTimeStamp()) {
+                return estimate;
+            }
+        }
+        return timeOfFirstEvent;
     }
 
     /**
-     * @return estimate time span represented by the data presented.
+     * Estimated wall-clock runtime of the JVM that produced the log.
+     * <p>
+     * The end of the run is the timestamp on the JVMTermination event when one was
+     * published; otherwise it is the time of the last observed event plus that event's
+     * duration. The start of the run is {@link #estimatedStartTime()}.
+     *
+     * @return runtime in decimal seconds
      */
     public double estimatedRuntime() {
-        return timeOfTermination.minus(estimatedStartTime());
+        return endOfLog().minus(estimatedStartTime());
+    }
+
+    /**
+     * Authoritative end-of-log time used by {@link #estimatedRuntime()}. Internal —
+     * the public {@link #timeOfTerminationEvent()} accessor is unchanged so external
+     * callers see the raw termination timestamp (which is {@code baseDate()} when no
+     * termination was published).
+     */
+    private DateTimeStamp endOfLog() {
+        // A real JVMTermination always has a positive uptime; baseDate (0.0) is the
+        // sentinel for "no JVMTermination event was published".
+        if (timeOfTermination != null
+                && timeOfTermination.hasTimeStamp()
+                && timeOfTermination.toSeconds() > 0.0) {
+            return timeOfTermination;
+        }
+        if (endOfLastReceivedEvent != null && endOfLastReceivedEvent.hasTimeStamp()) {
+            return endOfLastReceivedEvent;
+        }
+        // Nothing observed — return the sentinel so estimatedRuntime collapses to 0.
+        return timeOfTermination;
     }
 
     /**
@@ -184,6 +266,34 @@ public abstract class Aggregation {
 
     public void updateEventFrequency(JVMEvent event) {
         final DateTimeStamp dateTimeStamp = event.getDateTimeStamp();
+        if (dateTimeStamp == null) {
+            return;
+        }
+
+        // (1) Track the end of the last received event for the no-JVMTermination
+        // fallback in endOfLog(). Uses JVMEvent.getDuration() which the framework
+        // exposes uniformly for every event type.
+        double duration = event.getDuration();
+        if (Double.isNaN(duration) || duration < 0.0) {
+            endOfLastReceivedEvent = dateTimeStamp;
+        } else {
+            endOfLastReceivedEvent = dateTimeStamp.add(duration);
+        }
+
+        // (2) Sample the first FIRST_INTERVAL_SAMPLE_SIZE true inter-event intervals;
+        // their mean drives the start-time back-extrapolation in estimatedStartTime().
+        if (previousEventTimeStamp != null
+                && countOfFirstIntervals < FIRST_INTERVAL_SAMPLE_SIZE) {
+            double interval = dateTimeStamp.minus(previousEventTimeStamp);
+            if (interval >= 0.0 && !Double.isNaN(interval)) {
+                sumOfFirstIntervals += interval;
+                countOfFirstIntervals++;
+            }
+        }
+        previousEventTimeStamp = dateTimeStamp;
+
+        // (3) Pre-existing variance bookkeeping is retained for backward compatibility;
+        // it is no longer consulted by estimatedStartTime() but other callers may rely on it.
         if (timeOfLastSeenEvent == null) {
             timeOfLastSeenEvent = dateTimeStamp;
             return;
