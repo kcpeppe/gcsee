@@ -91,13 +91,22 @@ import com.kodewerk.gcsee.time.DateTimeStamp;
 public abstract class Aggregation {
 
     /**
-     * If the first line of the GC log is observed within this many seconds of
-     * the JVM origin we treat the log as untruncated and report
-     * {@link #estimatedStartTime()} as 0. Beyond this threshold the log is
-     * presumed to have been rotated and the start time is back-extrapolated
-     * from the first event we saw.
+     * Absolute floor (seconds) below which we always treat the log as
+     * untruncated and report {@link #estimatedStartTime()} as 0. Picked to
+     * be larger than any realistic JVM warm-up before the first GC event;
+     * GC log rotation policies very rarely keep more than two minutes of
+     * pre-rotation history out of the front of the log.
      */
-    private static final double EFFECTIVE_LOG_START_EPSILON_SECONDS = 0.5;
+    private static final double EFFECTIVE_LOG_START_EPSILON_SECONDS = 120.0;
+
+    /**
+     * Multiplier on the observed mean inter-event interval; if the first log
+     * line is within this many typical event gaps of the JVM origin the log
+     * is treated as untruncated even when it sits beyond
+     * {@link #EFFECTIVE_LOG_START_EPSILON_SECONDS}. Guards sparse-GC workloads
+     * where two minutes is a normal idle gap between events.
+     */
+    private static final double FIRST_INTERVAL_TRUNCATION_MULTIPLIER = 5.0;
 
     /**
      * Number of inter-event intervals we average when back-extrapolating the
@@ -172,20 +181,26 @@ public abstract class Aggregation {
      * <p>
      * The first line of the GC log carries an uptime which is recorded on
      * {@link com.kodewerk.gcsee.jvm.Diary} during parsing and propagated here through
-     * the JVMTermination event. Two cases:
+     * the JVMTermination event. The classification rule is:
      * <ul>
-     *   <li>If that uptime is at most {@value #EFFECTIVE_LOG_START_EPSILON_SECONDS} seconds
-     *       the log is treated as untruncated — the JVM started essentially at log time
-     *       0 and {@link DateTimeStamp#baseDate()} is returned.</li>
-     *   <li>Otherwise the log is presumed to have been rotated and the JVM was already
-     *       running before we saw any log line. The start is back-extrapolated as
-     *       {@code timeOfFirstEvent − meanInterval}, where {@code meanInterval} is the
-     *       mean of the first {@value #FIRST_INTERVAL_SAMPLE_SIZE} inter-event intervals
-     *       observed by the owning aggregator.</li>
+     *   <li><b>Untruncated</b> — {@code firstUptime ≤ max(ε, K · meanInterval)}
+     *       where {@code ε = }{@value #EFFECTIVE_LOG_START_EPSILON_SECONDS} seconds and
+     *       {@code K = }{@value #FIRST_INTERVAL_TRUNCATION_MULTIPLIER}. Returns
+     *       {@link DateTimeStamp#baseDate()}; the JVM is presumed to have started
+     *       essentially at log time 0 and the gap before the first event is JVM
+     *       warm-up. The relative test handles sparse-GC workloads where typical
+     *       inter-event gaps approach or exceed two minutes.</li>
+     *   <li><b>Truncated</b> — otherwise the log is presumed to be a rotated tail
+     *       and the JVM was already running before we saw any line. The start is
+     *       back-extrapolated as {@code timeOfFirstEvent − meanInterval}, where
+     *       {@code meanInterval} is the mean of the first
+     *       {@value #FIRST_INTERVAL_SAMPLE_SIZE} inter-event intervals observed
+     *       by the owning aggregator.</li>
      * </ul>
-     * Falls back to {@code timeOfFirstEvent} when no intervals are available (e.g. an
-     * aggregator that received only a single event), and to {@code baseDate()} when no
-     * events were observed at all.
+     * Falls back to {@code timeOfFirstEvent} when the back-extrapolation produces
+     * a negative timestamp (DateTimeStamp clamps to NaN) or when no intervals are
+     * available (e.g. an aggregator that received only a single event), and to
+     * {@code baseDate()} when no events were observed at all.
      *
      * @return The estimated JVM start time
      */
@@ -193,15 +208,26 @@ public abstract class Aggregation {
         if (timeOfFirstEvent == null) {
             return DateTimeStamp.baseDate();
         }
-        if (timeOfFirstEvent.hasTimeStamp()
-                && timeOfFirstEvent.toSeconds() <= EFFECTIVE_LOG_START_EPSILON_SECONDS) {
+        if (!timeOfFirstEvent.hasTimeStamp()) {
+            return timeOfFirstEvent;
+        }
+        final double firstUptime = timeOfFirstEvent.toSeconds();
+        final boolean haveIntervals = countOfFirstIntervals > 0;
+        final double meanInterval = haveIntervals
+                ? sumOfFirstIntervals / countOfFirstIntervals
+                : 0.0;
+        final double threshold = haveIntervals
+                ? Math.max(EFFECTIVE_LOG_START_EPSILON_SECONDS,
+                           FIRST_INTERVAL_TRUNCATION_MULTIPLIER * meanInterval)
+                : EFFECTIVE_LOG_START_EPSILON_SECONDS;
+        if (firstUptime <= threshold) {
             return DateTimeStamp.baseDate();
         }
-        if (countOfFirstIntervals > 0) {
-            double meanInterval = sumOfFirstIntervals / countOfFirstIntervals;
+        // Truncated branch: back-extrapolate when we have intervals to drive it.
+        if (haveIntervals) {
             DateTimeStamp estimate = timeOfFirstEvent.minus(meanInterval);
-            // DateTimeStamp clamps negative timestamps to NaN; in that case the
-            // back-extrapolation is unsupported and we fall back to first-event time.
+            // DateTimeStamp clamps negative timestamps to NaN; if extrapolation
+            // wraps below zero we cannot back-extrapolate and fall through.
             if (estimate.hasTimeStamp()) {
                 return estimate;
             }

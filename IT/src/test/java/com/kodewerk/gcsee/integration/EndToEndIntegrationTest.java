@@ -86,7 +86,9 @@ public class EndToEndIntegrationTest {
         // Retrieves the Aggregation for PauseTimeSummary. This is a com.kodewerk.gcsee.sample.aggregation.RuntimeAggregation.
         machine.getAggregation(PauseTimeSummary.class).ifPresent(pauseTimeSummary -> {
             Assertions.assertEquals( 208.922, pauseTimeSummary.getTotalPauseTime(), 0.001d, "Total Pause Time");
-            Assertions.assertEquals( 608797.895, pauseTimeSummary.estimatedRuntime(),0.001d, "Runtime duration");
+            // Last GC event at 608800.079 + duration 0.0086280 = 608800.087628.
+            // First log line at 2.193s ≤ 120s ε ⇒ start = 0; runtime = endOfLog.
+            Assertions.assertEquals( 608800.088, pauseTimeSummary.estimatedRuntime(),0.001d, "Runtime duration");
             Assertions.assertEquals( 34, (int)(pauseTimeSummary.getPercentPaused() * 1000d), "percent paused");
         });
 

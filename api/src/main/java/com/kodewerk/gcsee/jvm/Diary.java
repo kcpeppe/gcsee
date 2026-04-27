@@ -52,6 +52,7 @@ import static com.kodewerk.gcsee.jvm.SupportedFlags.*;
     PRINT_FLS_STATISTICS                        // 27
     PRINT_CPU_TIMES                             // 28
     GENERATIONAL_ZGC                            // 29
+    ZERO_GC_ID                                  // 30
  */
 
 public class Diary {
@@ -378,6 +379,10 @@ public class Diary {
 
     public boolean isMaxTenuringThresholdViolationKnown() {
         return isStateKnown(SupportedFlags.MAX_TENURING_THRESHOLD_VIOLATION);
+    }
+
+    public boolean isZeroGCIDKnown() {
+        return isStateKnown(ZERO_GCID);
     }
 
     public boolean isJVMEventsKnown() {

@@ -41,4 +41,6 @@ public enum SupportedFlags {
 
     GENERATIONAL_ZGC,                           // 29
 
+    ZERO_GCID                                   // 30
+
 }

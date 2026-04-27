@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class PreunifiedJavaVirtualMachineConfigurationTest {
 
     private String logFile = "preunified/g1gc/details/tenuring/180/g1gc.log";
-    private int[] times = { 0, 1028, 945481, 944453};
+    // Indexes: [0] machine.getEstimatedJVMStartTime, [1] machine.getTimeOfFirstEvent,
+    // [2] aggregation.timeOfTerminationEvent, [3] aggregation.estimatedRuntime — all in ms.
+    // [3] is termination − 0 (log first uptime 1.028s ≤ 120s ε ⇒ start treated as 0).
+    private int[] times = { 0, 1028, 945481, 945481};
 
     @Tag("modulePath")
     @Test
