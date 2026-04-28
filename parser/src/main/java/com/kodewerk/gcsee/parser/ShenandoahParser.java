@@ -85,7 +85,7 @@ public class ShenandoahParser extends UnifiedGCLogParser implements ShenandoahPa
     }
 
     public void endOfFile(GCLogTrace trace, String line) {
-        publish(new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+        publish(new JVMTermination(getClock(),diary.getEstimatedStartTime()));
     }
 
     //Implement all capture methods

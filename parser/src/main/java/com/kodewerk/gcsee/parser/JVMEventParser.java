@@ -87,7 +87,7 @@ public class JVMEventParser extends PreUnifiedGCLogParser implements JVMPatterns
                 // at issue is if logs have been concatenated then we're not at the end and we
                 // shouldn't release the
                 drainSafePoints();
-                publish(new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+                publish(new JVMTermination(getClock(),diary.getEstimatedStartTime()));
             } else if (getClock().getTimeStamp() > timeStamp.getTimeStamp()) {
                 drainSafePoints();
                 timeStamp = getClock();

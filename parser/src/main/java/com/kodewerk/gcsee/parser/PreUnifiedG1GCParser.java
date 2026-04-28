@@ -275,7 +275,7 @@ public class PreUnifiedG1GCParser extends PreUnifiedGCLogParser implements G1GCP
     }
 
     public void endOfFile(GCLogTrace trace, String line) {
-        super.publish(ChannelName.G1GC_PARSER_OUTBOX, new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+        super.publish(ChannelName.G1GC_PARSER_OUTBOX, new JVMTermination(getClock(),diary.getEstimatedStartTime()));
     }
 
     //18.298: [G1Ergonomics (CSet Construction) add young regions to CSet, eden: 512 regions, survivors: 0 regions, predicted young region time: 7833.33 ms]

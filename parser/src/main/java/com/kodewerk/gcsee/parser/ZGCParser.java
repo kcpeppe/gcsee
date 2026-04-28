@@ -156,7 +156,7 @@ public class ZGCParser extends UnifiedGCLogParser implements ZGCPatterns {
     }
 
     public void endOfFile(GCLogTrace trace, String line) {
-        publish(new JVMTermination(getClock(), diary.getTimeOfFirstEvent()));
+        publish(new JVMTermination(getClock(), diary.getEstimatedStartTime()));
     }
 
     private ZGCForwardReference getForwardRefForPhase(ZGCPhase zgcPhase) {

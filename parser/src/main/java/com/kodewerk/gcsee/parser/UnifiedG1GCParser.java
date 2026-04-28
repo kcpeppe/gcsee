@@ -253,7 +253,7 @@ public class UnifiedG1GCParser extends UnifiedGCLogParser implements UnifiedG1GC
     // todo: need to drain the queues before terminating...
     // Just in case there isn't a JVM termination event in the log.
     public void endOfFile(GCLogTrace trace, String line) {
-        publish(new JVMTermination((jvmTerminationEventTime.hasTimeStamp()) ? jvmTerminationEventTime : getClock(),diary.getTimeOfFirstEvent()));
+        publish(new JVMTermination((jvmTerminationEventTime.hasTimeStamp()) ? jvmTerminationEventTime : getClock(),diary.getEstimatedStartTime()));
     }
 
     /**

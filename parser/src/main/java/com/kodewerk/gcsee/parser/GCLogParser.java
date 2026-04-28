@@ -47,12 +47,20 @@ public abstract class GCLogParser implements DataSourceParser, SharedPatterns {
 
     /**
      * Sets the diary and initializes the clock to the time of the first event in the GC log.
+     * Falls back to the constructor-initialised EPOC/0.0 clock when the diary
+     * never observed a timestamp (e.g. logs containing only date-stamped lines
+     * that never decorated through to {@code timeOfFirstEvent}); a non-null
+     * clock is required because {@link #receive(String)} dereferences it on
+     * end-of-data.
      * @param diary summary of the GC log.
      */
     @Override
     public void diary(Diary diary) {
         this.diary = diary;
-        this.clock = diary.getTimeOfFirstEvent();
+        DateTimeStamp seeded = diary.getTimeOfFirstEvent();
+        if (seeded != null) {
+            this.clock = seeded;
+        }
     }
 
     /**

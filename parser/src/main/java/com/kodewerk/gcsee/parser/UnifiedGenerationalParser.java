@@ -424,7 +424,7 @@ public class UnifiedGenerationalParser extends UnifiedGCLogParser implements Uni
     }
 
     private void jvmExit(GCLogTrace trace, String line) {
-        super.publish(ChannelName.GENERATIONAL_HEAP_PARSER_OUTBOX,  new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+        super.publish(ChannelName.GENERATIONAL_HEAP_PARSER_OUTBOX,  new JVMTermination(getClock(),diary.getEstimatedStartTime()));
     }
 
     /**

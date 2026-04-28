@@ -110,6 +110,7 @@ public class PreUnifiedDiarizer implements Diarizer {
     @Override
     public Diary getDiary() {
         fillInKnowns();
+        diary.finalise();
         return diary;
     }
 
@@ -234,16 +235,18 @@ public class PreUnifiedDiarizer implements Diarizer {
     }
 
     private void timeOfFirstEvent(String line) {
-        if (timeOfFirstEvent == null) {
-            Matcher matcher = excludeG1Ergonomics.matcher(line);
-            if (matcher.find()) {
-                return;      // G1Ergonomics doesn't respect PrintDateStamp which confuses downstream calculations
-            }
-            GCLogTrace trace = PreUnifiedTokens.DATE_TIMESTAMP_RECORD.parse(line);
-            if (trace != null) {
-                timeOfFirstEvent = trace.getDateTimeStamp();
+        Matcher matcher = excludeG1Ergonomics.matcher(line);
+        if (matcher.find()) {
+            return;      // G1Ergonomics doesn't respect PrintDateStamp which confuses downstream calculations
+        }
+        GCLogTrace trace = PreUnifiedTokens.DATE_TIMESTAMP_RECORD.parse(line);
+        if (trace != null) {
+            DateTimeStamp ts = trace.getDateTimeStamp();
+            if (timeOfFirstEvent == null) {
+                timeOfFirstEvent = ts;
                 diary.setTimeOfFirstEvent(timeOfFirstEvent);
             }
+            diary.recordEventTimestamp(ts);
         }
     }
 

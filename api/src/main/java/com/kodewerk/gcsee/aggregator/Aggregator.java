@@ -145,8 +145,10 @@ public abstract class Aggregator<A extends Aggregation> {
         aggregation().updateEventFrequency(event);
 
         if (event instanceof JVMTermination) {
-            aggregation().timeOfTerminationEvent(((JVMTermination) event).getTimeOfTerminationEvent());
-            aggregation().timeOfFirstEvent(((JVMTermination)event).getTimeOfFirstEvent());
+            JVMTermination termination = (JVMTermination) event;
+            aggregation().timeOfTerminationEvent(termination.getTimeOfTerminationEvent());
+            aggregation().estimatedStartTime(termination.getStartTime());
+            aggregation().estimatedRuntime(termination.getRuntime());
         }
         jvmEventDispatcher.dispatch(event);
         if (event instanceof JVMTermination) {

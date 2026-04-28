@@ -59,7 +59,7 @@ public class UnifiedSurvivorMemoryPoolParser extends UnifiedGCLogParser implemen
         } else if (entry.equals(END_OF_DATA_SENTINEL) || (JVM_EXIT.parse(entry) != null)) {
             if (forwardReference != null)
                 publish(forwardReference);
-            publish(new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+            publish(new JVMTermination(getClock(),diary.getEstimatedStartTime()));
         } else if (forwardReference != null && ageDataCollected) {
             publish(forwardReference);
             forwardReference = null;

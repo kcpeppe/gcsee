@@ -31,7 +31,7 @@ public class SafepointParser extends PreUnifiedGCLogParser implements SafepointP
             Safepoint safepoint = trace.toSafepoint();
             super.publish(ChannelName.JVM_EVENT_PARSER_OUTBOX, safepoint);
         } else if (line.equals(END_OF_DATA_SENTINEL))
-            super.publish( ChannelName.JVM_EVENT_PARSER_OUTBOX, new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+            super.publish( ChannelName.JVM_EVENT_PARSER_OUTBOX, new JVMTermination(getClock(),diary.getEstimatedStartTime()));
     }
 
     @Override

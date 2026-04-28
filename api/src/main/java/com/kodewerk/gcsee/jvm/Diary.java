@@ -52,13 +52,52 @@ import static com.kodewerk.gcsee.jvm.SupportedFlags.*;
     PRINT_FLS_STATISTICS                        // 27
     PRINT_CPU_TIMES                             // 28
     GENERATIONAL_ZGC                            // 29
-    ZERO_GC_ID                                  // 30
+    ZERO_GCID                                   // 30
  */
 
 public class Diary {
 
+    /**
+     * Absolute floor (seconds) below which we always treat the log as
+     * untruncated and report {@link #getEstimatedStartTime()} as
+     * {@link DateTimeStamp#baseDate()}. Picked to be larger than any realistic
+     * JVM warm-up before the first GC event; GC log rotation policies very
+     * rarely keep more than two minutes of pre-rotation history out of the
+     * front of the log. Used only on the {@link SupportedFlags#ZERO_GCID}
+     * UNKNOWN branch (pre-unified logs).
+     */
+    private static final double EFFECTIVE_LOG_START_EPSILON_SECONDS = 120.0;
+
+    /**
+     * Multiplier on the observed mean inter-event interval; if the first log
+     * line is within this many typical event gaps of the JVM origin the log
+     * is treated as untruncated even when it sits beyond
+     * {@link #EFFECTIVE_LOG_START_EPSILON_SECONDS}. Guards sparse-GC workloads
+     * where two minutes is a normal idle gap between events. Used only on the
+     * {@link SupportedFlags#ZERO_GCID} UNKNOWN branch.
+     */
+    private static final double FIRST_INTERVAL_TRUNCATION_MULTIPLIER = 5.0;
+
+    /**
+     * Number of inter-event intervals we average when back-extrapolating the
+     * JVM start time from the first observed event on a (presumed-truncated)
+     * log. Five gives a stable mean without leaning on long-tail outliers.
+     */
+    private static final int FIRST_INTERVAL_SAMPLE_SIZE = 5;
+
     private final TripleState[] states;
     private DateTimeStamp timeOfFirstEvent;
+
+    /** Sum of the first {@link #FIRST_INTERVAL_SAMPLE_SIZE} non-negative inter-event intervals. */
+    private double sumOfFirstIntervals = 0.0;
+    /** Number of intervals contributing to {@link #sumOfFirstIntervals}, capped at the sample size. */
+    private int countOfFirstIntervals = 0;
+    /** Previous event's timestamp, used to compute the next interval. */
+    private DateTimeStamp previousEventTimeStamp = null;
+    /** Computed by {@link #finalise()} once the diarizer pre-pass completes. */
+    private DateTimeStamp estimatedStartTime = null;
+    /** Guards {@link #finalise()} idempotency. */
+    private boolean finalised = false;
 
     public Diary() {
         states = new TripleState[SupportedFlags.values().length];
@@ -385,6 +424,17 @@ public class Diary {
         return isStateKnown(ZERO_GCID);
     }
 
+    /**
+     * @return {@code true} when the diarizer observed {@code GC(0)} on the first
+     * unified-log line and so the log is known to start from the JVM's first
+     * collection. Returns {@code false} both when ZERO_GCID is FALSE and when
+     * it is UNKNOWN — guard with {@link #isZeroGCIDKnown()} if the distinction
+     * matters.
+     */
+    public boolean isZeroGCID() {
+        return isTrue(ZERO_GCID);
+    }
+
     public boolean isJVMEventsKnown() {
         return isApplicationStoppedTimeKnown() && isApplicationRunningTime();
     }
@@ -404,6 +454,141 @@ public class Diary {
 
     public boolean hasTimeOfFirstEvent() {
         return this.timeOfFirstEvent != null;
+    }
+
+    /**
+     * Forwarded to by the diarizer for every parsed line in the pre-pass.
+     * Captures the first observed event time and accumulates the first
+     * {@link #FIRST_INTERVAL_SAMPLE_SIZE} non-negative inter-event intervals,
+     * both of which feed the start-time estimate computed by
+     * {@link #finalise()}.
+     * <p>
+     * Date-only stamps (unified logs without uptime decoration) are still
+     * recorded as {@code timeOfFirstEvent} so downstream consumers like
+     * {@link com.kodewerk.gcsee.parser.GCLogParser GCLogParser} can seed
+     * their clock; the interval accumulator picks them up too because
+     * {@link DateTimeStamp#minus(DateTimeStamp)} falls back to date-stamp
+     * arithmetic when uptime isn't available.
+     *
+     * @param eventTime the parsed timestamp of the current line. {@code null}
+     *                  or fully-empty values (no date and no uptime) are
+     *                  ignored.
+     */
+    public void recordEventTimestamp(DateTimeStamp eventTime) {
+        if (eventTime == null) {
+            return;
+        }
+        if (!eventTime.hasTimeStamp() && !eventTime.hasDateStamp()) {
+            return;
+        }
+        if (this.timeOfFirstEvent == null) {
+            this.timeOfFirstEvent = eventTime;
+        }
+        if (previousEventTimeStamp != null
+                && countOfFirstIntervals < FIRST_INTERVAL_SAMPLE_SIZE) {
+            double interval = eventTime.minus(previousEventTimeStamp);
+            if (interval >= 0.0 && !Double.isNaN(interval)) {
+                sumOfFirstIntervals += interval;
+                countOfFirstIntervals++;
+            }
+        }
+        previousEventTimeStamp = eventTime;
+    }
+
+    /**
+     * Called by the diarizer at the end of its pre-pass, once every line has
+     * been examined and the {@link SupportedFlags#ZERO_GCID} verdict is settled.
+     * Computes and caches the JVM start time so that subsequent calls to
+     * {@link #getEstimatedStartTime()} are pure getters.
+     * <p>
+     * Idempotent — repeated calls are no-ops.
+     */
+    public void finalise() {
+        if (finalised) {
+            return;
+        }
+        estimatedStartTime = computeEstimatedStartTime();
+        finalised = true;
+    }
+
+    /**
+     * Estimates the JVM start time from the data captured during the diarizer
+     * pre-pass.
+     *
+     * <ul>
+     *   <li><b>{@link SupportedFlags#ZERO_GCID} TRUE</b> — first line is
+     *       {@code GC(0)}; the log starts at the JVM's first collection.
+     *       Returns {@link DateTimeStamp#baseDate()}.</li>
+     *   <li><b>{@link SupportedFlags#ZERO_GCID} FALSE</b> — first line is
+     *       {@code GC(N>0)} on a unified log; the JVM was already running
+     *       before we saw any line. Back-extrapolates as
+     *       {@code timeOfFirstEvent − meanInterval} when intervals are available;
+     *       otherwise falls back to {@code timeOfFirstEvent}.</li>
+     *   <li><b>{@link SupportedFlags#ZERO_GCID} UNKNOWN</b> — pre-unified log
+     *       (no GC id field). Applies the heuristic
+     *       {@code firstUptime ≤ max(ε, K · meanInterval)} with
+     *       {@code ε = }{@value #EFFECTIVE_LOG_START_EPSILON_SECONDS} seconds and
+     *       {@code K = }{@value #FIRST_INTERVAL_TRUNCATION_MULTIPLIER}: under
+     *       the threshold the log is treated as untruncated and the result is
+     *       {@code baseDate()}; over it, back-extrapolation is attempted as in
+     *       the FALSE branch.</li>
+     * </ul>
+     *
+     * Falls back to {@code baseDate()} when no events were observed at all.
+     *
+     * @return The estimated JVM start time
+     */
+    public DateTimeStamp getEstimatedStartTime() {
+        if (!finalised) {
+            // Defensive: if a caller raced ahead of the diarizer pre-pass we
+            // still produce an answer rather than NPE. Once finalise() runs,
+            // the cached value sticks.
+            finalise();
+        }
+        return estimatedStartTime;
+    }
+
+    private DateTimeStamp computeEstimatedStartTime() {
+        if (timeOfFirstEvent == null || !timeOfFirstEvent.hasTimeStamp()) {
+            return DateTimeStamp.baseDate();
+        }
+        final boolean haveIntervals = countOfFirstIntervals > 0;
+        final double meanInterval = haveIntervals
+                ? sumOfFirstIntervals / countOfFirstIntervals
+                : 0.0;
+
+        // ZERO_GCID TRUE: first line is GC(0), log is anchored at the JVM origin.
+        if (isStateKnown(ZERO_GCID) && isTrue(ZERO_GCID)) {
+            return DateTimeStamp.baseDate();
+        }
+
+        // ZERO_GCID FALSE: first line is GC(N>0), log is a rotated tail.
+        if (isStateKnown(ZERO_GCID) && !isTrue(ZERO_GCID)) {
+            return backExtrapolate(meanInterval, haveIntervals);
+        }
+
+        // ZERO_GCID UNKNOWN: pre-unified log; fall back to ε/K heuristic.
+        final double firstUptime = timeOfFirstEvent.toSeconds();
+        final double threshold = haveIntervals
+                ? Math.max(EFFECTIVE_LOG_START_EPSILON_SECONDS,
+                           FIRST_INTERVAL_TRUNCATION_MULTIPLIER * meanInterval)
+                : EFFECTIVE_LOG_START_EPSILON_SECONDS;
+        if (firstUptime <= threshold) {
+            return DateTimeStamp.baseDate();
+        }
+        return backExtrapolate(meanInterval, haveIntervals);
+    }
+
+    private DateTimeStamp backExtrapolate(double meanInterval, boolean haveIntervals) {
+        if (haveIntervals) {
+            DateTimeStamp estimate = timeOfFirstEvent.minus(meanInterval);
+            // DateTimeStamp clamps negative timestamps to NaN; if extrapolation
+            // wraps below zero we cannot back-extrapolate and fall through.
+            if (estimate.hasTimeStamp()) {
+                return estimate;
+            }
+        }
+        return timeOfFirstEvent;
     }
 
 /*

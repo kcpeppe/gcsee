@@ -65,10 +65,11 @@ public class CaptureJVMTerminationEventTest {
         } catch (Exception e) {
             fail(e.getMessage());
         }
-        Assertions.assertEquals( 2.193d, terminationAggregation.getStartTime().getTimeStamp(),0.001d, "Time of first event");
+        // First log line at 2.193s ≤ 120s ε ⇒ estimatedStartTime is treated
+        // as JVM start (baseDate), so the start time uptime is 0.
+        Assertions.assertEquals( 0.0d, terminationAggregation.getStartTime().getTimeStamp(),0.001d, "Estimated start time");
         // Last GC event at 608800.079 + duration 0.0086280 = 608800.087628 (the
-        // synthesised JVMTermination uptime). First log line at 2.193s ≤ 120s ε
-        // ⇒ estimatedStartTime is treated as 0, so runtime = endOfLog − 0.
+        // synthesised JVMTermination uptime). Runtime = endOfLog − 0.
         Assertions.assertEquals( 608800.088d, heapOccupancyAfterCollectionSummary.estimatedRuntime(),0.001d, "Runtime duration");
 
     }
@@ -82,7 +83,7 @@ public class CaptureJVMTerminationEventTest {
         }
 
         private void process(JVMTermination event) {
-            aggregation().recordStartTime(event.getTimeOfFirstEvent());
+            aggregation().recordStartTime(event.getStartTime());
         }
     }
 

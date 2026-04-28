@@ -46,7 +46,7 @@ public class SurvivorMemoryPoolParser extends PreUnifiedGCLogParser implements T
         } else if (entry.equals(END_OF_DATA_SENTINEL) || (JVM_EXIT.parse(entry) != null)) {
             if (forwardReference != null)
                 super.publish(ChannelName.SURVIVOR_MEMORY_POOL_PARSER_OUTBOX, forwardReference);
-            super.publish(ChannelName.SURVIVOR_MEMORY_POOL_PARSER_OUTBOX, new JVMTermination(getClock(),diary.getTimeOfFirstEvent()));
+            super.publish(ChannelName.SURVIVOR_MEMORY_POOL_PARSER_OUTBOX, new JVMTermination(getClock(),diary.getEstimatedStartTime()));
         } else if (forwardReference != null) {
             super.publish(ChannelName.SURVIVOR_MEMORY_POOL_PARSER_OUTBOX, forwardReference);
             forwardReference = null;

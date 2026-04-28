@@ -8,6 +8,8 @@ import com.kodewerk.gcsee.parser.unified.UnifiedLoggingLevel;
 import com.kodewerk.gcsee.time.DateTimeStamp;
 
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.kodewerk.gcsee.jvm.SupportedFlags.GC_CAUSE;
 import static com.kodewerk.gcsee.jvm.SupportedFlags.*;
@@ -24,6 +26,9 @@ public class UnifiedDiarizer implements Diarizer {
 
     private static final int CYCLES_TO_EXAMINE_BEFORE_GIVING_UP = 10;
     private static final int CYCLES_TO_EXAMINE_FOR_SAFEPOINT = 2;
+
+    /** Matches the unified-log GC id token, e.g. {@code GC(0)}, {@code GC(42)}. */
+    private static final Pattern GC_ID_PATTERN = Pattern.compile("GC\\((\\d+)\\)");
 
     private int lineCount = MAXIMUM_LINES_TO_EXAMINE;
 
@@ -42,6 +47,7 @@ public class UnifiedDiarizer implements Diarizer {
 
     public Diary getDiary() {
         fillInKnowns();
+        diary.finalise();
         return diary;
     }
 
@@ -85,6 +91,7 @@ public class UnifiedDiarizer implements Diarizer {
                 return false;
             lineCount--;
             extractDecorators(line);
+            detectZeroGcid(line);
             if (!diary.isCollectorKnown())
                 discoverCollector(line);
             if (!diary.isDetailsKnown())
@@ -98,13 +105,40 @@ public class UnifiedDiarizer implements Diarizer {
     }
 
     /**
+     * Inspect a unified-log line for a {@code GC(N)} token and use the first
+     * one we find to settle the {@link com.kodewerk.gcsee.jvm.SupportedFlags#ZERO_GCID}
+     * verdict for the log: {@code GC(0)} ⇒ TRUE (log starts at the JVM's first
+     * collection), {@code GC(N>0)} ⇒ FALSE (rotated tail). Lines without a
+     * {@code GC(N)} token are skipped. No-op once the verdict is known.
+     */
+    private void detectZeroGcid(String line) {
+        if (diary.isZeroGCIDKnown()) {
+            return;
+        }
+        Matcher m = GC_ID_PATTERN.matcher(line);
+        if (m.find()) {
+            try {
+                int id = Integer.parseInt(m.group(1));
+                if (id == 0) {
+                    diary.setTrue(ZERO_GCID);
+                } else {
+                    diary.setFalse(ZERO_GCID);
+                }
+            } catch (NumberFormatException ignored) {
+                // Pattern guarantees digits-only; this branch is unreachable
+                // but keeps a malformed match from blowing up the pre-pass.
+            }
+        }
+    }
+
+    /**
      * Extract decorators (from a GC log line tag) and set the corresponding diary flags accordingly
      *
      * @param line GC log line
      */
     private void extractDecorators(String line) {
         Decorators decorators = new Decorators(line);
-        timeOfFirstEvent(decorators);
+        diary.recordEventTimestamp(decorators.getDateTimeStamp());
         extractTagsAndLevels(decorators);
         // -Xlog:gc*,gc+ref=debug,gc+phases=debug,gc+age=trace,safepoint
         if (decorators.getLogLevel().isPresent()) {
@@ -149,11 +183,6 @@ public class UnifiedDiarizer implements Diarizer {
                     diary.setTrue(GC_CAUSE);
             }
         }
-    }
-
-    private void timeOfFirstEvent(Decorators decorator) {
-        if ( ! diary.hasTimeOfFirstEvent())
-            diary.setTimeOfFirstEvent(decorator.getDateTimeStamp());
     }
 
     private void extractTagsAndLevels(Decorators decorators) {
