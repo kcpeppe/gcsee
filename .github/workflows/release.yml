@@ -1,7 +1,5 @@
 name: Release to Maven Central
 
-# Triggered manually — enter the release version (e.g. 0.1.0) and the next
-# development version (e.g. 0.2.0-SNAPSHOT) when prompted.
 on:
   workflow_dispatch:
     inputs:
@@ -12,18 +10,22 @@ on:
         description: 'Next development version (e.g. 0.2.0-SNAPSHOT)'
         required: true
         default: ''
+      force:
+        description: 'Allow overwrite of existing release/tag (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to push tag + create GitHub Release
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # JReleaser needs full history for changelog
+          fetch-depth: 0
 
       - name: Set up JDK 11
         uses: actions/setup-java@v4
@@ -38,10 +40,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # -----------------------------------------------------------------------
-      # Write ~/.m2/settings.xml with the Sonatype Central server credentials.
-      # This keeps credentials out of the pom.xml entirely.
-      # The server id must match the one referenced in the pom.xml deploy config.
+      # Guard: Fail early unless force=true
       # -----------------------------------------------------------------------
+      - name: Check if tag already exists (guard)
+        if: ${{ github.event.inputs.force != 'true' }}
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/v${{ github.event.inputs.release_version }}"; then
+            echo "Tag v${{ github.event.inputs.release_version }} already exists on remote."
+            echo "Re-run with force=true to overwrite, or bump the version."
+            exit 1
+          fi
+
       - name: Write Maven settings.xml
         run: |
           mkdir -p ~/.m2
@@ -57,9 +66,6 @@ jobs:
           </settings>
           SETTINGS
 
-      # -----------------------------------------------------------------------
-      # Step 1: Set the release version in all pom.xml files
-      # -----------------------------------------------------------------------
       - name: Set release version
         run: ./mvnw -B versions:set -DnewVersion=${{ github.event.inputs.release_version }} -DgenerateBackupPoms=false
 
@@ -68,15 +74,11 @@ jobs:
           git add -A
           git commit -m "Release ${{ github.event.inputs.release_version }}"
 
-      # -----------------------------------------------------------------------
-      # Step 2: Build and stage artifacts to target/staging-deploy
-      # GPG signing is skipped here — JReleaser handles signing in the next step
-      # -----------------------------------------------------------------------
       - name: Build and stage artifacts
         run: ./mvnw -B -Prelease deploy -Dgpg.skip=true
 
       # -----------------------------------------------------------------------
-      # Step 3: Run JReleaser — creates GitHub Release + signs + publishes to Maven Central
+      # JReleaser with conditional overwrite
       # -----------------------------------------------------------------------
       - name: JReleaser full-release
         run: ./mvnw -B -Pjreleaser jreleaser:full-release
@@ -87,10 +89,8 @@ jobs:
           JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVENCENTRAL_USERNAME }}
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.MAVENCENTRAL_PASSWORD }}
+          JRELEASER_RELEASE_GITHUB_OVERWRITE: ${{ github.event.inputs.force }}
 
-      # -----------------------------------------------------------------------
-      # Step 4: Bump to next development version and push
-      # -----------------------------------------------------------------------
       - name: Set next development version
         run: ./mvnw -B versions:set -DnewVersion=${{ github.event.inputs.next_version }} -DgenerateBackupPoms=false
 
@@ -100,9 +100,6 @@ jobs:
           git commit -m "Prepare next development version ${{ github.event.inputs.next_version }}"
           git push origin main
 
-      # -----------------------------------------------------------------------
-      # Upload JReleaser output on failure for debugging
-      # -----------------------------------------------------------------------
       - name: Upload JReleaser output
         if: failure()
         uses: actions/upload-artifact@v4
@@ -111,3 +108,4 @@ jobs:
           path: |
             target/jreleaser/trace.log
             target/jreleaser/output.properties
+
