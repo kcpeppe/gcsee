@@ -12,8 +12,8 @@ on:
         default: ''
       force:
         description: 'Allow overwrite of existing release/tag (true/false)'
-        required: false
-        default: 'false'
+        required: true
+        default: 'true'
 
 jobs:
   release:
@@ -27,10 +27,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 11
+      - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: '25'
           distribution: 'temurin'
           cache: 'maven'
 
