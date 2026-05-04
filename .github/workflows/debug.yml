@@ -1,0 +1,19 @@
+name: Build with Maven (debug)
+  run: |
+    ./mvnw -B -X verify -Dmaven.compiler.release=${{ matrix.java }} --file pom.xml 2>&1 | tee /tmp/build.log
+  continue-on-error: true
+
+- name: Inspect what surefire actually loaded
+  if: always()
+  run: |
+    echo "=== argline files surefire wrote ==="
+    find . -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null | head
+    echo
+    echo "=== contents of any argline files ==="
+    find . -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null | xargs -I {} sh -c 'echo "--- {} ---"; cat {}'
+    echo
+    echo "=== module-path lines from build log ==="
+    grep -E -- '--module-path|--patch-module|-cp |-classpath ' /tmp/build.log | head -40
+    echo
+    echo "=== forked JVM commands ==="
+    grep -E 'Forking command line|surefire-booter|ForkedBooter' /tmp/build.log | head -10
