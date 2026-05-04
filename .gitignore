@@ -6,7 +6,7 @@ gclogs/unified
 gclogs/zgc
 
 unifiedrules.txt
-gctoolkit-testdata-*.zip
+gcsee-testdata-1.0.0.zip
 
 # Maven
 target/
