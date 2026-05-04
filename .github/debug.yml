@@ -1,0 +1,47 @@
+# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 25
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
+    - name: Build with Maven
+      run:     ./mvnw -B -X verify -Dmaven.compiler.release=${{ matrix.java }} --file pom.xml 2>&1 | tee /tmp/build.log
+      continue-on-error: true
+    - name: Inspect what surefire actually loaded
+    if: always() run: |
+      echo "=== argline files surefire wrote ==="
+      find . -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null | head
+      echo
+      echo "=== contents of any argline files ==="
+      find . -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null | xargs -I {} sh -c 'echo "--- {} ---"; cat {}'
+      echo
+      echo "=== module-path lines from build log ==="
+      grep -E -- '--module-path|--patch-module|-cp |-classpath ' /tmp/build.log | head -40
+      echo
+      echo "=== forked JVM commands ==="
+      grep -E 'Forking command line|surefire-booter|ForkedBooter' /tmp/build.log | head -10
+
+
