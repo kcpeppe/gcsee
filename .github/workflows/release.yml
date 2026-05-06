@@ -9,11 +9,10 @@ on:
       next_version:
         description: 'Next development version (e.g. 0.2.2-SNAPSHOT)'
         required: true
-        default: ''
       force:
         description: 'Allow overwrite of existing release/tag (true/false)'
         required: true
-        default: 'true'
+        default: 'false'
 
 jobs:
   release:
@@ -40,67 +39,106 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # -----------------------------------------------------------------------
-      # Guard: Fail early unless force=true
+      # Sanity checks
       # -----------------------------------------------------------------------
+      - name: Validate inputs
+        run: |
+          rv='${{ github.event.inputs.release_version }}'
+          nv='${{ github.event.inputs.next_version }}'
+          if [[ "$rv" == *-SNAPSHOT ]]; then
+            echo "release_version must NOT end in -SNAPSHOT (got: $rv)"; exit 1
+          fi
+          if [[ "$nv" != *-SNAPSHOT ]]; then
+            echo "next_version MUST end in -SNAPSHOT (got: $nv)"; exit 1
+          fi
+          if [[ "$rv" == "$nv" ]]; then
+            echo "release_version and next_version must differ"; exit 1
+          fi
+
       - name: Check if tag already exists (guard)
         if: ${{ github.event.inputs.force != 'true' }}
         run: |
-          if git ls-remote --tags origin | grep -q "refs/tags/v${{ github.event.inputs.release_version }}"; then
-            echo "Tag v${{ github.event.inputs.release_version }} already exists on remote."
+          rv='${{ github.event.inputs.release_version }}'
+          if git ls-remote --tags origin | grep -q "refs/tags/v${rv}$"; then
+            echo "Tag v${rv} already exists on remote."
             echo "Re-run with force=true to overwrite, or bump the version."
             exit 1
           fi
 
-      - name: Write Maven settings.xml
+      - name: Check if release_version already exists on Central (guard)
+        if: ${{ github.event.inputs.force != 'true' }}
         run: |
-          mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml <<SETTINGS
-          <settings>
-            <servers>
-              <server>
-                <id>central</id>
-                <username>${{ secrets.MAVENCENTRAL_USERNAME }}</username>
-                <password>${{ secrets.MAVENCENTRAL_PASSWORD }}</password>
-              </server>
-            </servers>
-          </settings>
-          SETTINGS
+          rv='${{ github.event.inputs.release_version }}'
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "https://repo1.maven.org/maven2/com/kodewerk/gcsee/gcsee-api/${rv}/gcsee-api-${rv}.pom")
+          if [ "$code" = "200" ]; then
+            echo "gcsee-api ${rv} already published to Maven Central."
+            echo "Maven Central artifacts are immutable — re-publishing the same coordinates is impossible."
+            echo "Pick a higher release_version, or use force=true only if you understand the GitHub side."
+            exit 1
+          fi
 
-      - name: Set release version
-        run: ./mvnw -B versions:set -DnewVersion=${{ github.event.inputs.release_version }} -DgenerateBackupPoms=false
+      # -----------------------------------------------------------------------
+      # Step 1: bump pom.xml to release version, commit + push BEFORE deploying.
+      # If JReleaser later fails, main still reflects what was attempted, and
+      # re-running the workflow lands cleanly because the commit step is idempotent.
+      # -----------------------------------------------------------------------
+      - name: Set release version in all modules
+        run: |
+          ./mvnw -B versions:set \
+            -DnewVersion=${{ github.event.inputs.release_version }} \
+            -DprocessAllModules=true \
+            -DgenerateBackupPoms=false
 
-      - name: Commit release version
+      - name: Commit and push release version
         run: |
           git add -A
-          git commit -m "Release ${{ github.event.inputs.release_version }}"
+          if git diff --cached --quiet; then
+            echo "pom already at ${{ github.event.inputs.release_version }} on main; nothing to commit"
+          else
+            git commit -m "Release ${{ github.event.inputs.release_version }}"
+            # rebase-pull in case main moved during the run, then push
+            git pull --rebase origin main || true
+            git push origin HEAD:main
+          fi
 
+      - name: Tag release
+        run: |
+          rv='${{ github.event.inputs.release_version }}'
+          force='${{ github.event.inputs.force }}'
+          if git ls-remote --tags origin | grep -q "refs/tags/v${rv}$"; then
+            if [ "$force" = "true" ]; then
+              git tag -f -a "v${rv}" -m "Release ${rv}"
+              git push origin "v${rv}" --force
+            else
+              echo "Tag exists and force=false; aborting"
+              exit 1
+            fi
+          else
+            git tag -a "v${rv}" -m "Release ${rv}"
+            git push origin "v${rv}"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 2: stage artifacts and run JReleaser. JReleaser tags HEAD, but
+      # HEAD is now == origin/main + the release tag we just pushed, so the
+      # tag is anchored to a commit that exists upstream.
+      # -----------------------------------------------------------------------
       - name: Build and stage artifacts
         run: ./mvnw -B -Prelease deploy -Dgpg.skip=true
 
-      # -----------------------------------------------------------------------
-      # JReleaser with conditional overwrite
-      # -----------------------------------------------------------------------
       - name: JReleaser full-release
         run: ./mvnw -B -Pjreleaser jreleaser:full-release
         env:
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
-          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVENCENTRAL_USERNAME }}
-          JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.MAVENCENTRAL_PASSWORD }}
+          JRELEASER_GITHUB_TOKEN:           ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_GPG_PASSPHRASE:         ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          JRELEASER_GPG_SECRET_KEY:         ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          JRELEASER_GPG_PUBLIC_KEY:         ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
+          JRELEASER_MAVENCENTRAL_USERNAME:  ${{ secrets.MAVENCENTRAL_USERNAME }}
+          JRELEASER_MAVENCENTRAL_PASSWORD:  ${{ secrets.MAVENCENTRAL_PASSWORD }}
           JRELEASER_RELEASE_GITHUB_OVERWRITE: ${{ github.event.inputs.force }}
 
-      - name: Set next development version
-        run: ./mvnw -B versions:set -DnewVersion=${{ github.event.inputs.next_version }} -DgenerateBackupPoms=false
-
-      - name: Commit and push next version
-        run: |
-          git add -A
-          git commit -m "Prepare next development version ${{ github.event.inputs.next_version }}"
-          git push origin main
-
-      - name: Upload JReleaser output
+      - name: Upload JReleaser output on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -109,3 +147,24 @@ jobs:
             target/jreleaser/trace.log
             target/jreleaser/output.properties
 
+      # -----------------------------------------------------------------------
+      # Step 3: bump pom.xml to next SNAPSHOT, push. Idempotent guard handles
+      # re-runs where this step already happened.
+      # -----------------------------------------------------------------------
+      - name: Set next development version
+        run: |
+          ./mvnw -B versions:set \
+            -DnewVersion=${{ github.event.inputs.next_version }} \
+            -DprocessAllModules=true \
+            -DgenerateBackupPoms=false
+
+      - name: Commit and push next version
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "pom already at ${{ github.event.inputs.next_version }} on main; nothing to commit"
+          else
+            git commit -m "Prepare next development version ${{ github.event.inputs.next_version }}"
+            git pull --rebase origin main || true
+            git push origin HEAD:main
+          fi
