@@ -1,19 +1,90 @@
-name: Build with Maven (debug)
-  run: |
-    ./mvnw -B -X verify -Dmaven.compiler.release=${{ matrix.java }} --file pom.xml 2>&1 | tee /tmp/build.log
-  continue-on-error: true
+name: Surefire module-path debug
 
-- name: Inspect what surefire actually loaded
-  if: always()
-  run: |
-    echo "=== argline files surefire wrote ==="
-    find . -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null | head
-    echo
-    echo "=== contents of any argline files ==="
-    find . -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null | xargs -I {} sh -c 'echo "--- {} ---"; cat {}'
-    echo
-    echo "=== module-path lines from build log ==="
-    grep -E -- '--module-path|--patch-module|-cp |-classpath ' /tmp/build.log | head -40
-    echo
-    echo "=== forked JVM commands ==="
-    grep -E 'Forking command line|surefire-booter|ForkedBooter' /tmp/build.log | head -10
+# Run this workflow manually to capture full -X debug output and figure out
+# why surefire chooses classpath over module-path on the GHA runner.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Show JVM environment
+        run: |
+          echo "JAVA_TOOL_OPTIONS='${JAVA_TOOL_OPTIONS:-<unset>}'"
+          echo "_JAVA_OPTIONS='${_JAVA_OPTIONS:-<unset>}'"
+          echo "MAVEN_OPTS='${MAVEN_OPTS:-<unset>}'"
+          echo
+          env | grep -iE 'java|maven|surefire' | sort
+          echo
+          java -version
+          java -XshowSettings:properties -version 2>&1 \
+            | grep -E 'java\.specification\.version|java\.vm\.vendor|user\.|file\.encoding|--enable-native-access' \
+            || true
+
+      - name: Build everything once (so the diagnostic test can run)
+        run: ./mvnw -B -DskipTests -Dmaven.compiler.release=25 install
+
+      - name: Run DiagnoseProvidersTest with full -X output
+        continue-on-error: true
+        run: |
+          ./mvnw -B -X -pl IT test \
+            -Dtest=DiagnoseProvidersTest -DfailIfNoSpecifiedTests=false \
+            2>&1 | tee /tmp/build.log
+
+      - name: Extract module-path / classpath decisions
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "1. surefire 'useModulePath' references in -X output"
+          echo "=================================================="
+          grep -nE 'useModulePath|module-path|modulepath|--patch-module' /tmp/build.log | head -40 || echo "(none found)"
+
+          echo
+          echo "=================================================="
+          echo "2. argline / classpath files surefire wrote to disk"
+          echo "=================================================="
+          find . -path './target/*' -prune -o \( -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' \) -print 2>/dev/null
+          find IT/target -name 'surefire-args*' -o -name 'surefireargs*' -o -name '*surefire*.tmp' 2>/dev/null \
+            | while read f; do echo "--- $f ---"; head -200 "$f"; done || true
+
+          echo
+          echo "=================================================="
+          echo "3. surefire 'Forking command line' (the actual JVM exec)"
+          echo "=================================================="
+          grep -n 'Forking command' /tmp/build.log | head -5 || echo "(no 'Forking command' line found)"
+          awk '/Forking command/{flag=1} flag{print; if (length($0) < 200 && /\.jar/) flag=0}' /tmp/build.log | head -50 | cut -c1-500
+
+          echo
+          echo "=================================================="
+          echo "4. classpath vs module-path decisions in surefire's plan"
+          echo "=================================================="
+          grep -nE 'effectivelyClasspath|module path|classpath of test|patch.?module|test-classpath' /tmp/build.log | head -30 || echo "(none found)"
+
+          echo
+          echo "=================================================="
+          echo "5. DiagnoseProvidersTest stdout (should print module list)"
+          echo "=================================================="
+          grep -A 200 'self module:' /tmp/build.log | head -300 || echo "(test did not print self module info)"
+
+      - name: Upload full -X log as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-debug-log
+          path: /tmp/build.log
+          if-no-files-found: warn
