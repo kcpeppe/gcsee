@@ -9,7 +9,7 @@ module com.kodewerk.gcsee.parser {
     requires java.logging;
 
     exports com.kodewerk.gcsee.parser to
-            com.kodewerk.gcsee.api;
+            com.kodewerk.gcsee.api, com.kodewerk.gcsee.it;
 
     exports com.kodewerk.gcsee.parser.io to
             com.kodewerk.gcsee.api;

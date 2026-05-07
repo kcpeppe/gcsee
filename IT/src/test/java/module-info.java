@@ -1,10 +1,11 @@
-module com.kodewerk.gcsee.it {
+open module com.kodewerk.gcsee.it {
     requires com.kodewerk.gcsee.api;
     requires com.kodewerk.gcsee.parser;
     requires com.kodewerk.gcsee.vertx;
 
     requires org.junit.jupiter.api;
     requires org.junit.jupiter.engine;
+    requires com.kodewerk.gcsee.integration;
 
     uses com.kodewerk.gcsee.aggregator.Aggregation;
     uses com.kodewerk.gcsee.jvm.JavaVirtualMachine;

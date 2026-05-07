@@ -6,6 +6,7 @@
  * @provides com.kodewerk.gcsee.jvm.JavaVirtualMachine
  */
 module com.kodewerk.gcsee.vertx {
+    exports com.kodewerk.gcsee.vertx;
     requires com.kodewerk.gcsee.api;
     requires io.vertx.core;
     requires java.logging;

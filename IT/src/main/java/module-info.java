@@ -10,7 +10,9 @@ open module com.kodewerk.gcsee.integration {
     requires java.logging;
 
     exports com.kodewerk.gcsee.integration.aggregation to
-            com.kodewerk.gcsee.api;
+            com.kodewerk.gcsee.api, com.kodewerk.gcsee.it;
+    exports com.kodewerk.gcsee.integration.collections;
+    exports com.kodewerk.gcsee.integration.shared;
 
     provides com.kodewerk.gcsee.aggregator.Aggregation with
             com.kodewerk.gcsee.integration.aggregation.HeapOccupancyAfterCollectionSummary,
