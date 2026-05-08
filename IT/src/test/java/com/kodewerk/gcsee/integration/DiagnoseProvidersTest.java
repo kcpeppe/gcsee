@@ -13,6 +13,10 @@ public class DiagnoseProvidersTest {
         Module self = getClass().getModule();
         System.out.println("=== self module: " + self.getName()
                 + " (named=" + self.isNamed() + ")");
+        if (!self.isNamed() || self.getLayer() == null) {
+            throw new IllegalStateException("Module-path execution required for @Tag(\"modulePath\") tests; " +
+                    "current run is on classpath. Check surefire.useModulePath and Maven/JVM options.");
+        }
         System.out.println("=== gcsee modules in boot layer ===");
         self.getLayer().modules().stream()
                 .filter(m -> m.getName() != null && m.getName().startsWith("com.kodewerk.gcsee"))
